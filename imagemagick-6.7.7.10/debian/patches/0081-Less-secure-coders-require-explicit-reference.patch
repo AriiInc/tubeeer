@@ -1,0 +1,62 @@
+Description: Less secure coders require explicit reference (e.g. mvg:my-graph.mvg)
+Origin: upstream, https://github.com/ImageMagick/ImageMagick/commit/611b2f063eb526da5f1ec1e8045794cf28a55921
+Applied-Upstream: commit, 611b2f063eb526da5f1ec1e8045794cf28a55921
+Bug: https://www.imagemagick.org/discourse-server/viewtopic.php?f=4&t=29588
+Bug-CVE: CVE-2016-3714, CVE-2016-3715, CVE-2016-3716, CVE-2016-3717, CVE-2016-3718
+Bug-Debian: https://bugs.debian.org/823542
+Last-Update: 2016-05-16
+---
+--- a/coders/msl.c
++++ b/coders/msl.c
+@@ -7796,6 +7796,7 @@
+   entry->decoder=(DecodeImageHandler *) ReadMSLImage;
+   entry->encoder=(EncodeImageHandler *) WriteMSLImage;
+ #endif
++  entry->format_type=ImplicitFormatType;
+   entry->description=ConstantString("Magick Scripting Language");
+   entry->module=ConstantString("MSL");
+   (void) RegisterMagickInfo(entry);
+--- a/coders/mvg.c
++++ b/coders/mvg.c
+@@ -250,6 +250,7 @@
+   entry->magick=(IsImageFormatHandler *) IsMVG;
+   entry->adjoin=MagickFalse;
+   entry->seekable_stream=MagickTrue;
++  entry->format_type=ImplicitFormatType;
+   entry->description=ConstantString("Magick Vector Graphics");
+   entry->module=ConstantString("MVG");
+   (void) RegisterMagickInfo(entry);
+--- a/coders/txt.c
++++ b/coders/txt.c
+@@ -420,8 +420,6 @@
+     }
+   (void) ResetMagickMemory(text,0,sizeof(text));
+   (void) ReadBlobString(image,text);
+-  if (LocaleNCompare((char *) text,MagickID,strlen(MagickID)) != 0)
+-    return(ReadTEXTImage(image_info,image,text,exception));
+   do
+   {
+     *colorspace='\0';
+@@ -543,10 +541,11 @@
+     *entry;
+ 
+   entry=SetMagickInfo("TEXT");
+-  entry->decoder=(DecodeImageHandler *) ReadTXTImage;
++  entry->decoder=(DecodeImageHandler *) ReadTEXTImage;
+   entry->encoder=(EncodeImageHandler *) WriteTXTImage;
+   entry->raw=MagickTrue;
+   entry->endian_support=MagickTrue;
++  entry->format_type=ImplicitFormatType;
+   entry->description=ConstantString("Text");
+   entry->module=ConstantString("TXT");
+   (void) RegisterMagickInfo(entry);
+--- a/magick/magic.c
++++ b/magick/magic.c
+@@ -140,7 +140,6 @@
+     { "MPC", 0, MagickString("id=MagickCache") },
+     { "MPEG", 0, MagickString("\000\000\001\263") },
+     { "MRW", 0, MagickString("\x00MRM") },
+-    { "MVG", 0, MagickString("push graphic-context") },
+     { "ORF", 0, MagickString("IIRO\x08\x00\x00\x00") },
+     { "PCD", 2048, MagickString("PCD_") },
+     { "PCL", 0, MagickString("\033E\033") },

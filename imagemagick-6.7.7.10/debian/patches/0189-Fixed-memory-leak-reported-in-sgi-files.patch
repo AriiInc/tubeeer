@@ -1,0 +1,95 @@
+Backport of:
+
+From 38097558172d39e5946e8c7deebb1c2579538a00 Mon Sep 17 00:00:00 2001
+From: Dirk Lemstra <dirk@git.imagemagick.org>
+Date: Mon, 17 Apr 2017 19:03:46 +0200
+Subject: [PATCH] Fixed memory leak reported in sgi files
+
+Fix a leak in avs file and CVE-2017-7941
+
+Origin: https://github.com/ImageMagick/ImageMagick/commit/721dc1305b2bfff92e5ca605dc1a47c61ce90b9f
+bug: https://github.com/ImageMagick/ImageMagick/issues/428
+bug-debian: https://bugs.debian.org/860734
+
+(cherry picked from commit 721dc1305b2bfff92e5ca605dc1a47c61ce90b9f)
+---
+ coders/sgi.c | 40 +++++++++++++++++++++++++++++++---------
+ 1 file changed, 31 insertions(+), 9 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/sgi.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/sgi.c	2017-05-26 07:58:09.448741692 -0400
++++ imagemagick-6.7.7.10/coders/sgi.c	2017-05-26 08:33:39.867877001 -0400
+@@ -402,7 +402,10 @@ static Image *ReadSGIImage(const ImageIn
+         scanline=(unsigned char *) AcquireQuantumMemory(iris_info.columns,
+           bytes_per_pixel*sizeof(*scanline));
+         if (scanline == (unsigned char *) NULL)
+-          ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
++          {
++            iris_pixels=(unsigned char *) RelinquishMagickMemory(iris_pixels);
++            ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
++          }
+         for (z=0; z < (ssize_t) iris_info.depth; z++)
+         {
+           p=iris_pixels+bytes_per_pixel*z;
+@@ -455,14 +458,26 @@ static Image *ReadSGIImage(const ImageIn
+         if ((offsets == (ssize_t *) NULL) ||
+             (packets == (unsigned char *) NULL) ||
+             (runlength == (size_t *) NULL))
+-          ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
++          {
++            offsets=(ssize_t *) RelinquishMagickMemory(offsets);
++            runlength=(size_t *) RelinquishMagickMemory(runlength);
++            packets=(unsigned char *) RelinquishMagickMemory(packets);
++            iris_pixels=(unsigned char *) RelinquishMagickMemory(iris_pixels);
++            ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
++          }
+         for (i=0; i < (ssize_t) (iris_info.rows*iris_info.depth); i++)
+           offsets[i]=(int) ReadBlobMSBLong(image);
+         for (i=0; i < (ssize_t) (iris_info.rows*iris_info.depth); i++)
+         {
+           runlength[i]=ReadBlobMSBLong(image);
+           if (runlength[i] > (4*(size_t) iris_info.columns+10))
+-            ThrowReaderException(CorruptImageError,"ImproperImageHeader");
++            {
++              offsets=(ssize_t *) RelinquishMagickMemory(offsets);
++              runlength=(size_t *) RelinquishMagickMemory(runlength);
++              packets=(unsigned char *) RelinquishMagickMemory(packets);
++              iris_pixels=(unsigned char *) RelinquishMagickMemory(iris_pixels);
++              ThrowReaderException(CorruptImageError,"ImproperImageHeader");
++            }
+         }
+         /*
+           Check data order.
+@@ -498,7 +513,14 @@ static Image *ReadSGIImage(const ImageIn
+                   (runlength[y+z*iris_info.rows]/bytes_per_pixel),packets,
+                   1L*iris_info.columns,p+bytes_per_pixel*z);
+                 if (status == MagickFalse)
+-                  ThrowReaderException(CorruptImageError,"ImproperImageHeader");
++                  {
++                    offsets=(ssize_t *) RelinquishMagickMemory(offsets);
++                    runlength=(size_t *) RelinquishMagickMemory(runlength);
++                    packets=(unsigned char *) RelinquishMagickMemory(packets);
++                    iris_pixels=(unsigned char *) RelinquishMagickMemory(iris_pixels);
++                    ThrowReaderException(CorruptImageError,
++                      "ImproperImageHeader");
++                  }
+                 p+=(iris_info.columns*4*bytes_per_pixel);
+               }
+             }
+@@ -528,7 +550,14 @@ static Image *ReadSGIImage(const ImageIn
+                   (runlength[y+z*iris_info.rows]/bytes_per_pixel),packets,
+                   1L*iris_info.columns,p+bytes_per_pixel*z);
+                 if (status == MagickFalse)
+-                  ThrowReaderException(CorruptImageError,"ImproperImageHeader");
++                  {
++                    offsets=(ssize_t *) RelinquishMagickMemory(offsets);
++                    runlength=(size_t *) RelinquishMagickMemory(runlength);
++                    packets=(unsigned char *) RelinquishMagickMemory(packets);
++                    iris_pixels=(unsigned char *) RelinquishMagickMemory(iris_pixels);
++                    ThrowReaderException(CorruptImageError,
++                      "ImproperImageHeader");
++                  }
+               }
+               p+=(iris_info.columns*4*bytes_per_pixel);
+             }

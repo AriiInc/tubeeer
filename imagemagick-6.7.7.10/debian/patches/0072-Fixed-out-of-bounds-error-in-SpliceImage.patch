@@ -1,0 +1,85 @@
+From 281308d0fc7b1beaa3b71c44f472b7664f53d0e5 Mon Sep 17 00:00:00 2001
+From: dirk <dirk@git.imagemagick.org>
+Date: Fri, 9 Oct 2015 10:08:06 +0200
+Subject: [PATCH] Fixed out of bounds error in SpliceImage.
+
+Bug: http://www.imagemagick.org/discourse-server/viewtopic.html?f=3&t=28466
+---
+ magick/transform.c | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)
+
+--- a/magick/transform.c
++++ b/magick/transform.c
+@@ -1624,6 +1624,14 @@
+ %    o exception: return any errors or warnings in this structure.
+ %
+ */
++static inline size_t MagickMin(const size_t x,const size_t y)
++{
++  if (x < y)
++    return(x);
++  return(y);
++}
++
++
+ MagickExport Image *SpliceImage(const Image *image,
+   const RectangleInfo *geometry,ExceptionInfo *exception)
+ {
+@@ -1646,6 +1654,7 @@
+     splice_geometry;
+ 
+   ssize_t
++    columns,
+     y;
+ 
+   /*
+@@ -1730,6 +1739,7 @@
+   */
+   status=MagickTrue;
+   progress=0;
++  columns=MagickMin(splice_geometry.x,(ssize_t) splice_image->columns);
+   image_view=AcquireVirtualCacheView(image,exception);
+   splice_view=AcquireAuthenticCacheView(splice_image,exception);
+ #if defined(MAGICKCORE_OPENMP_SUPPORT)
+@@ -1753,7 +1763,8 @@
+ 
+     if (status == MagickFalse)
+       continue;
+-    p=GetCacheViewVirtualPixels(image_view,0,y,image->columns,1,exception);
++    p=GetCacheViewVirtualPixels(image_view,0,y,splice_image->columns,1,
++      exception);
+     q=QueueCacheViewAuthenticPixels(splice_view,0,y,splice_image->columns,1,
+       exception);
+     if ((p == (const PixelPacket *) NULL) || (q == (PixelPacket *) NULL))
+@@ -1763,7 +1774,7 @@
+       }
+     indexes=GetCacheViewAuthenticIndexQueue(image_view);
+     splice_indexes=GetCacheViewAuthenticIndexQueue(splice_view);
+-    for (x=0; x < splice_geometry.x; x++)
++    for (x=0; x < columns; x++)
+     {
+       SetPixelRed(q,GetPixelRed(p));
+       SetPixelGreen(q,GetPixelGreen(p));
+@@ -1833,10 +1844,10 @@
+ 
+     if (status == MagickFalse)
+       continue;
+-    p=GetCacheViewVirtualPixels(image_view,0,y-(ssize_t) splice_geometry.height,
+-      image->columns,1,exception);
+-    if ((y < 0) || (y >= (ssize_t) splice_image->rows))
++    if ((y < 0) || (y >= (ssize_t)splice_image->rows))
+       continue;
++    p=GetCacheViewVirtualPixels(image_view,0,y-(ssize_t) splice_geometry.height,
++      splice_image->columns,1,exception);
+     q=QueueCacheViewAuthenticPixels(splice_view,0,y,splice_image->columns,1,
+       exception);
+     if ((p == (const PixelPacket *) NULL) || (q == (PixelPacket *) NULL))
+@@ -1846,7 +1857,7 @@
+       }
+     indexes=GetCacheViewAuthenticIndexQueue(image_view);
+     splice_indexes=GetCacheViewAuthenticIndexQueue(splice_view);
+-    for (x=0; x < splice_geometry.x; x++)
++    for (x=0; x < columns; x++)
+     {
+       SetPixelRed(q,GetPixelRed(p));
+       SetPixelGreen(q,GetPixelGreen(p));

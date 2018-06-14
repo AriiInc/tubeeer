@@ -1,0 +1,34 @@
+From c0d64961a50c5bc613518442745ad03cef870f35 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Thu, 12 Jan 2017 12:51:14 -0500
+Subject: [PATCH] Fix a double free in profile due to overflow
+
+Fix CVE-2017-5506
+
+bug: https://github.com/ImageMagick/ImageMagick/issues/354
+origin: https://github.com/ImageMagick/ImageMagick/commit/6235f1f7a9f7b0f83b197f6cd0073dbb6602d0fb
+bug-debian: https://bugs.debian.org/851383
+---
+ magick/profile.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+Index: imagemagick-6.7.7.10/magick/profile.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/profile.c	2017-03-02 15:06:16.016735182 -0500
++++ imagemagick-6.7.7.10/magick/profile.c	2017-03-02 15:06:16.012735136 -0500
+@@ -1599,11 +1599,11 @@
+           /*
+             The directory entry contains an offset.
+           */
+-          offset=(ssize_t) ((int) ReadProfileLong(endian,q+8));
+-          if ((ssize_t) (offset+number_bytes) < offset)
+-            continue;  /* prevent overflow */
+-          if ((size_t) (offset+number_bytes) > length)
++          offset=(ssize_t) ReadProfileLong(endian,q+8);
++          if ((offset < 0) || ((size_t) (offset+number_bytes) > length))
+             continue;
++          if (~length < number_bytes)
++            continue;  /* prevent overflow */
+           p=(unsigned char *) (exif+offset);
+         }
+       switch (tag_value)

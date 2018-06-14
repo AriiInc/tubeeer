@@ -1,0 +1,38 @@
+From d8ccf0cde8b1df3d44b47f560a69c821bcb96921 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Thu, 24 Sep 2015 09:37:24 -0400
+Subject: [PATCH] Prevent null pointer access in magick/constitute.c
+
+Bug: https://github.com/ImageMagick/ImageMagick/pull/34
+---
+ magick/constitute.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/magick/constitute.c b/magick/constitute.c
+index ff339ee..820f632 100644
+--- a/magick/constitute.c
++++ b/magick/constitute.c
+@@ -1299,7 +1299,14 @@ MagickExport MagickBooleanType WriteImages(const ImageInfo *image_info,
+   sans_exception=DestroyExceptionInfo(sans_exception);
+   p=images;
+   for ( ; GetNextImageInList(p) != (Image *) NULL; p=GetNextImageInList(p))
+-    if (p->scene >= GetNextImageInList(p)->scene)
++  {
++    register Image
++      *next;
++
++    next=GetNextImageInList(p);
++    if (next == (Image *) NULL)
++      break;
++    if (p->scene >= next->scene)
+       {
+         register ssize_t
+           i;
+@@ -1312,6 +1319,7 @@ MagickExport MagickBooleanType WriteImages(const ImageInfo *image_info,
+           p->scene=(size_t) i++;
+         break;
+       }
++  }
+   /*
+     Write images.
+   */

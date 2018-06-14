@@ -1,0 +1,31 @@
+Backport of:
+
+From 09d6c3b076815f582e410d2030575e890381fcaf Mon Sep 17 00:00:00 2001
+From: dirk <dirk@git.imagemagick.org>
+Date: Fri, 15 Jan 2016 01:27:31 +0100
+Subject: [PATCH] Added missing call to ConstrainColormapIndex avoiding a
+ overflow in case of corrupted file
+
+It fix psd file handling for corrupted file. This is partial fix.
+
+Origin: upstream, https://github.com/ImageMagick/ImageMagick/commit/e14fd0a2801f73bdc123baf4fbab97dec55919eb
+Bug-ubuntu: https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1533442
+Bug: https://github.com/ImageMagick/ImageMagick/issues/83
+Bug-debian: https://bugs.debian.org/832457
+---
+ coders/psd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: imagemagick-6.7.7.10/coders/psd.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/psd.c	2016-11-11 14:20:40.507605949 -0500
++++ imagemagick-6.7.7.10/coders/psd.c	2016-11-11 14:21:03.135824077 -0500
+@@ -685,7 +685,7 @@
+                     SetPixelIndex(indexes+x,(((unsigned char) pixel) &
+                       (0x01 << (7-bit))) != 0 ? 0 : 255);
+                     SetPixelRGBO(q,image->colormap+(ssize_t)
+-                      GetPixelIndex(indexes+x));
++                      ConstrainColormapIndex(image,GetPixelIndex(indexes+x)));
+                     q++;
+                     x++;
+                   }

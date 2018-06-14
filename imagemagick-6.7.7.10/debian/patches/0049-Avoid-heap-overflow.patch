@@ -1,0 +1,94 @@
+Backport of:
+
+From ac74497be613d3fb246ce3a17457d08ac81d12fe Mon Sep 17 00:00:00 2001
+From: cristy <cristy@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Sun, 14 Dec 2014 17:43:28 +0000
+Subject: [PATCH] Avoid heap overflow
+
+Avoid to allocate too much memory
+
+git-svn-id: https://subversion.imagemagick.org/subversion/ImageMagick/branches/ImageMagick-6@17210 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+origin:  http://trac.imagemagick.org/changeset/17210
+---
+ coders/fits.c    |  2 +-
+ coders/pnm.c     | 14 ++++++++++----
+ magick/quantum.c |  4 ++--
+ 3 files changed, 13 insertions(+), 7 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/fits.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/fits.c	2016-11-11 13:51:55.422652283 -0500
++++ imagemagick-6.7.7.10/coders/fits.c	2016-11-11 13:51:55.418652241 -0500
+@@ -647,7 +647,7 @@
+     Initialize image header.
+   */
+   image->depth=GetImageQuantumDepth(image,MagickFalse);
+-  quantum_info=AcquireQuantumInfo((const ImageInfo *) NULL,image);
++  quantum_info=AcquireQuantumInfo(image_info,image);
+   if (quantum_info == (QuantumInfo *) NULL)
+     ThrowWriterException(ResourceLimitError,"MemoryAllocationFailed");
+   offset=0;
+Index: imagemagick-6.7.7.10/coders/pnm.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/pnm.c	2016-11-11 13:51:55.422652283 -0500
++++ imagemagick-6.7.7.10/coders/pnm.c	2016-11-11 13:52:31.959040944 -0500
+@@ -1805,7 +1805,7 @@
+         if (IsGrayImage(image,&image->exception) == MagickFalse)
+           (void) TransformImageColorspace(image,GRAYColorspace);
+         image->depth=1;
+-        quantum_info=AcquireQuantumInfo((const ImageInfo *) NULL,image);
++        quantum_info=AcquireQuantumInfo(image_info,image);
+         if (quantum_info == (QuantumInfo *) NULL)
+           ThrowWriterException(ResourceLimitError,"MemoryAllocationFailed");
+         quantum_info->min_is_white=MagickTrue;
+@@ -1849,7 +1849,7 @@
+         (void) FormatLocaleString(buffer,MaxTextExtent,"%.20g\n",(double)
+           ((MagickOffsetType) GetQuantumRange(image->depth)));
+         (void) WriteBlobString(image,buffer);
+-        quantum_info=AcquireQuantumInfo((const ImageInfo *) NULL,image);
++        quantum_info=AcquireQuantumInfo(image_info,image);
+         if (quantum_info == (QuantumInfo *) NULL)
+           ThrowWriterException(ResourceLimitError,"MemoryAllocationFailed");
+         quantum_info->min_is_white=MagickTrue;
+@@ -1936,7 +1936,7 @@
+         (void) FormatLocaleString(buffer,MaxTextExtent,"%.20g\n",(double)
+           ((MagickOffsetType) GetQuantumRange(image->depth)));
+         (void) WriteBlobString(image,buffer);
+-        quantum_info=AcquireQuantumInfo((const ImageInfo *) NULL,image);
++        quantum_info=AcquireQuantumInfo(image_info,image);
+         if (quantum_info == (QuantumInfo *) NULL)
+           ThrowWriterException(ResourceLimitError,"MemoryAllocationFailed");
+         pixels=GetQuantumPixels(quantum_info);
+@@ -2007,7 +2007,9 @@
+         */
+         if (image->depth > 16)
+           image->depth=16;
+-        quantum_info=AcquireQuantumInfo((const ImageInfo *) NULL,image);
++        quantum_info=AcquireQuantumInfo(image_info,image);
++        if (quantum_info == (QuantumInfo *) NULL)
++          ThrowWriterException(ResourceLimitError,"MemoryAllocationFailed");
+         pixels=GetQuantumPixels(quantum_info);
+         range=GetQuantumRange(image->depth);
+         for (y=0; y < (ssize_t) image->rows; y++)
+Index: imagemagick-6.7.7.10/magick/quantum.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/quantum.c	2016-11-11 13:51:55.422652283 -0500
++++ imagemagick-6.7.7.10/magick/quantum.c	2016-11-11 13:51:55.418652241 -0500
+@@ -121,8 +121,6 @@
+   QuantumInfo
+     *quantum_info;
+ 
+-  if (SyncImagePixelCache(image,&image->exception) == MagickFalse)
+-    return(MagickFalse);
+   quantum_info=(QuantumInfo *) AcquireMagickMemory(sizeof(*quantum_info));
+   if (quantum_info == (QuantumInfo *) NULL)
+     ThrowFatalException(ResourceLimitFatalError,"MemoryAllocationFailed");
+@@ -130,6 +128,8 @@
+   GetQuantumInfo(image_info,quantum_info);
+   if (image == (const Image *) NULL)
+     return(quantum_info);
++  if (SyncImagePixelCache(image,&image->exception) == MagickFalse)
++    return(DestroyQuantumInfo(quantum_info));
+   status=SetQuantumDepth(image,quantum_info,image->depth);
+   if (status == MagickFalse)
+     quantum_info=DestroyQuantumInfo(quantum_info);

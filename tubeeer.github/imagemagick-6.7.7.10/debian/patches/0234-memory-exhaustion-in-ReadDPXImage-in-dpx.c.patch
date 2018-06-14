@@ -1,0 +1,39 @@
+From dd379b623077db9197782e99c8fb31feebd13710 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Sat, 24 Jun 2017 08:29:29 -0400
+Subject: [PATCH] memory exhaustion in ReadDPXImage in dpx.c
+
+When identify DPX file that contains user header data, imagemagick will allocate memory to store the data in function ReadDPXImage in coders\dpx.c
+
+There is a security checking in the function SetImageExtent, but it is too late, so IM can not control the memory usage
+
+bug: https://github.com/ImageMagick/ImageMagick/issues/523
+bug-debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=867812
+origin: https://github.com/ImageMagick/ImageMagick/commit/961eb7c6fe2f1efc0be11d950c4500cd0cd17702
+
+(cherry picked from commit 961eb7c6fe2f1efc0be11d950c4500cd0cd17702)
+---
+ coders/dpx.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+Index: imagemagick-6.7.7.10/coders/dpx.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/dpx.c	2017-07-21 10:01:31.425295045 -0400
++++ imagemagick-6.7.7.10/coders/dpx.c	2017-07-21 10:01:31.421295045 -0400
+@@ -998,6 +998,8 @@ static Image *ReadDPXImage(const ImageIn
+           StringInfo
+             *profile;
+ 
++           if (dpx.file.user_size > GetBlobSize(image))
++             ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+            profile=BlobToStringInfo((const void *) NULL,
+              dpx.file.user_size-sizeof(dpx.user.id));
+            if (profile == (StringInfo *) NULL)
+@@ -1200,6 +1202,7 @@ ModuleExport size_t RegisterDPXImage(voi
+   entry->decoder=(DecodeImageHandler *) ReadDPXImage;
+   entry->encoder=(EncodeImageHandler *) WriteDPXImage;
+   entry->magick=(IsImageFormatHandler *) IsDPX;
++  entry->seekable_stream=MagickTrue;
+   entry->adjoin=MagickFalse;
+   entry->description=ConstantString("SMPTE 268M-2003 (DPX 2.0)");
+   entry->note=ConstantString(DPXNote);

@@ -1,0 +1,118 @@
+From ce26253aceb1f72ffe49e12f193923e567501109 Mon Sep 17 00:00:00 2001
+From: cristy <cristy@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Mon, 8 Oct 2012 16:26:00 +0000
+Subject: [PATCH] Memory leak: after setjmp used variable need to be volatile
+
+According to POSIX setjmp manpage:
+  All accessible objects have values as of the time longjmp() was called,
+  except that the values of objects of automatic storage duration which are
+  local to the function containing the invocation of the corresponding
+  setjmp() which do not have volatile-qualified type and
+  which are changed between the setjmp() invocation and longjmp() call are indeterminate.
+
+Previous code was not safe according to this specification and could lead to memory
+leak.
+
+If the setjmp handler is called after reading a corrupted png, ping_pixels may
+be null and thus lead to a memory leak.
+
+Mark this kind of variable as volatile.
+
+git-svn-id: https://www.imagemagick.org/subversion/ImageMagick/trunk@9558 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+
+Cherry picked rom svn revision 9558
+
+Origin: upstream, http://trac.imagemagick.org/changeset/9558
+Bug: http://www.imagemagick.org/discourse-server/viewtopic.php?f=3&t=22024
+---
+ coders/jpeg.c | 16 ++++++++--------
+ coders/png.c  |  4 ++--
+ 2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/coders/jpeg.c b/coders/jpeg.c
+index 38cf292..262fe11 100644
+--- a/coders/jpeg.c
++++ b/coders/jpeg.c
+@@ -951,7 +951,7 @@ static Image *ReadJPEGImage(const ImageInfo *image_info,
+     index;
+ 
+   JSAMPLE
+-    *jpeg_pixels;
++    *volatile jpeg_pixels;
+ 
+   JSAMPROW
+     scanline[1];
+@@ -1240,8 +1240,8 @@ static Image *ReadJPEGImage(const ImageInfo *image_info,
+   */
+   if (setjmp(error_manager.error_recovery) != 0)
+     {
+-      if (jpeg_pixels != (unsigned char *) NULL)
+-        jpeg_pixels=(unsigned char *) RelinquishMagickMemory(jpeg_pixels);
++      if (jpeg_pixels != (JSAMPLE *) NULL)
++        jpeg_pixels=(JSAMPLE *) RelinquishMagickMemory(jpeg_pixels);
+       jpeg_destroy_decompress(&jpeg_info);
+       (void) CloseBlob(image);
+       number_pixels=(MagickSizeType) image->columns*image->rows;
+@@ -1395,7 +1395,7 @@ static Image *ReadJPEGImage(const ImageInfo *image_info,
+     Free jpeg resources.
+   */
+   jpeg_destroy_decompress(&jpeg_info);
+-  jpeg_pixels=(unsigned char *) RelinquishMagickMemory(jpeg_pixels);
++  jpeg_pixels=(JSAMPLE *) RelinquishMagickMemory(jpeg_pixels);
+   (void) CloseBlob(image);
+   return(GetFirstImageInList(image));
+ }
+@@ -1992,7 +1992,7 @@ static MagickBooleanType WriteJPEGImage(const ImageInfo *image_info,
+     quality;
+ 
+   JSAMPLE
+-    *jpeg_pixels;
++    *volatile jpeg_pixels;
+ 
+   JSAMPROW
+     scanline[1];
+@@ -2513,8 +2513,8 @@ static MagickBooleanType WriteJPEGImage(const ImageInfo *image_info,
+   if (setjmp(error_manager.error_recovery) != 0)
+     {
+       jpeg_destroy_compress(&jpeg_info);
+-      if (jpeg_pixels != (unsigned char *) NULL)
+-        jpeg_pixels=(unsigned char *) RelinquishMagickMemory(jpeg_pixels);
++      if (jpeg_pixels != (JSAMPLE *) NULL)
++        jpeg_pixels=(JSAMPLE *) RelinquishMagickMemory(jpeg_pixels);
+       (void) CloseBlob(image);
+       return(MagickFalse);
+     }
+@@ -2710,7 +2710,7 @@ static MagickBooleanType WriteJPEGImage(const ImageInfo *image_info,
+     Relinquish resources.
+   */
+   jpeg_destroy_compress(&jpeg_info);
+-  jpeg_pixels=(unsigned char *) RelinquishMagickMemory(jpeg_pixels);
++  jpeg_pixels=(JSAMPLE *) RelinquishMagickMemory(jpeg_pixels);
+   (void) CloseBlob(image);
+   return(MagickTrue);
+ }
+diff --git a/coders/png.c b/coders/png.c
+index dc0cac9..8037c62 100644
+--- a/coders/png.c
++++ b/coders/png.c
+@@ -2012,7 +2012,7 @@ static Image *ReadOnePNGImage(MngInfo *mng_info,
+     y_resolution;
+ 
+   unsigned char
+-    *ping_pixels;
++    *volatile ping_pixels;
+ 
+   ssize_t
+     ping_rowbytes,
+@@ -7507,7 +7507,7 @@ static MagickBooleanType WriteOnePNGImage(MngInfo *mng_info,
+     x;
+ 
+   unsigned char
+-    *ping_pixels;
++    *volatile ping_pixels;
+ 
+   volatile int
+     image_colors,
+-- 
+1.8.3.2
+

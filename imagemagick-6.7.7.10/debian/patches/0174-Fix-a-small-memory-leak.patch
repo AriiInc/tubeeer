@@ -1,0 +1,26 @@
+From a48ba899e027f25dbcdda9951a7214a495188687 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Sat, 10 Dec 2016 19:51:17 -0500
+Subject: [PATCH] Fix a small memory leak
+
+Fix CVE-2016-10146
+
+bug-debian: https://bugs.debian.org/851380
+origin: https://github.com/ImageMagick/ImageMagick/commit/aeff00de228bc5a158c2a975ab47845d8a1db456
+---
+ coders/caption.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: imagemagick-6.7.7.10/coders/caption.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/caption.c	2017-03-02 15:02:41.302174829 -0500
++++ imagemagick-6.7.7.10/coders/caption.c	2017-03-02 15:02:41.302174829 -0500
+@@ -255,7 +255,7 @@
+         (void) FormatLocaleString(geometry,MaxTextExtent,"%+g%+g",
+           image->columns-(metrics.bounds.x2+draw_info->stroke_width/2.0),
+           metrics.ascent+draw_info->stroke_width/2.0);
+-      draw_info->geometry=AcquireString(geometry);
++      (void) CloneString(&draw_info->geometry,geometry);
+     }
+   status=AnnotateImage(image,draw_info);
+   draw_info=DestroyDrawInfo(draw_info);

@@ -1,0 +1,81 @@
+Backport of:
+
+From c6e93f5452275834baffb329bd9854a326d85a99 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Fri, 6 May 2016 17:57:29 -0400
+Subject: [PATCH] Fix off by one error when checking token length
+
+This prepare fix for CVE-2017-10928
+
+bug: https://github.com/ImageMagick/ImageMagick/issues/539
+bug-debian: https://bugs.debian.org/867367
+origin: https://github.com/ImageMagick/ImageMagick/commit/a3658407fae9642dadaef4b150a93c2c17ed97ff
+
+(cherry picked from commit a3658407fae9642dadaef4b150a93c2c17ed97ff)
+---
+ magick/token.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+Index: imagemagick-6.7.7.10/magick/token.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/token.c	2017-07-21 09:42:44.761242507 -0400
++++ imagemagick-6.7.7.10/magick/token.c	2017-07-21 09:44:05.397246268 -0400
+@@ -217,17 +217,17 @@ MagickExport void GetMagickToken(const c
+                 p++;
+                 break;
+               }
+-          if (i < extent)
++          if (i < (extent-1))
+             token[i++]=(*p);
+         }
+         break;
+       }
+       case '/':
+       {
+-        if (i < extent)
++        if (i < (extent-1))
+           token[i++]=(*p++);
+         if ((*p == '>') || (*p == '/'))
+-          if (i < extent)
++          if (i < (extent-1))
+             token[i++]=(*p++);
+         break;
+       }
+@@ -241,17 +241,17 @@ MagickExport void GetMagickToken(const c
+         if ((p != q) && (*p != ','))
+           {
+             for ( ; (p < q) && (*p != ','); p++)
+-              if (i < extent)
++              if (i < (extent-1))
+                 token[i++]=(*p);
+             if (*p == '%')
+-              if (i < extent)
++              if (i < (extent-1))
+                 token[i++]=(*p++);
+             break;
+           }
+         if ((*p != '\0') && (isalpha((int) ((unsigned char) *p)) == 0) &&
+             (*p != *DirectorySeparator) && (*p != '#') && (*p != '<'))
+           {
+-            if (i < extent)
++            if (i < (extent-1))
+               token[i++]=(*p++);
+             break;
+           }
+@@ -262,14 +262,14 @@ MagickExport void GetMagickToken(const c
+             break;
+           if ((i > 0) && (*p == '<'))
+             break;
+-          if (i < extent)
++          if (i < (extent-1))
+             token[i++]=(*p);
+           if (*p == '>')
+             break;
+           if (*p == '(')
+             for (p++; *p != '\0'; p++)
+             {
+-              if (i < extent)
++              if (i < (extent-1))
+                 token[i++]=(*p);
+               if ((*p == ')') && (*(p-1) != '\\'))
+                 break;

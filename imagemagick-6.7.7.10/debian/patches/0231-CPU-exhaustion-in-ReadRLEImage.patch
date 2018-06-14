@@ -1,0 +1,54 @@
+From d8f13a0c5729c68c174bc6a69a5fd62c50417345 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Fri, 23 Jun 2017 08:59:30 -0400
+Subject: [PATCH] CPU exhaustion in ReadRLEImage
+
+A corrupted rle file could trigger a DOS
+
+bug: https://github.com/ImageMagick/ImageMagick/issues/518
+bug-debian: https://bugs.debian.org/867808
+origin: https://github.com/ImageMagick/ImageMagick/commit/224bc946b24824a77e8e8c52ee07e9bc65796e30
+
+(cherry picked from commit 224bc946b24824a77e8e8c52ee07e9bc65796e30)
+---
+ coders/rle.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/rle.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/rle.c	2017-07-21 10:01:22.153294613 -0400
++++ imagemagick-6.7.7.10/coders/rle.c	2017-07-21 10:01:22.153294613 -0400
+@@ -274,7 +274,14 @@ static Image *ReadRLEImage(const ImageIn
+       (void) ReadBlobByte(image);
+     if (EOFBlob(image) != MagickFalse)
+       ThrowRLEException(CorruptImageError,"UnexpectedEndOfFile");
+-    colormap=(unsigned char *) NULL;
++    if (image->matte != MagickFalse)
++      number_planes++;
++    number_pixels=(MagickSizeType) image->columns*image->rows;
++    if ((GetBlobSize(image) == 0) || ((((MagickSizeType) number_pixels*
++         number_planes*bits_per_pixel/8)/GetBlobSize(image)) > 254.0))
++      ThrowRLEException(CorruptImageError,"InsufficientImageDataInFile")
++    if (((MagickSizeType) number_colormaps*map_length) > GetBlobSize(image))
++      ThrowRLEException(CorruptImageError,"InsufficientImageDataInFile")
+     if (number_colormaps != 0)
+       {
+         /*
+@@ -333,9 +340,6 @@ static Image *ReadRLEImage(const ImageIn
+     /*
+       Allocate RLE pixels.
+     */
+-    if (image->matte != MagickFalse)
+-      number_planes++;
+-    number_pixels=(MagickSizeType) image->columns*image->rows;
+     number_planes_filled=(number_planes % 2 == 0) ? number_planes :
+       number_planes+1;
+     if ((number_pixels*number_planes_filled) != (size_t) (number_pixels*
+@@ -744,6 +748,7 @@ ModuleExport size_t RegisterRLEImage(voi
+   entry=SetMagickInfo("RLE");
+   entry->decoder=(DecodeImageHandler *) ReadRLEImage;
+   entry->magick=(IsImageFormatHandler *) IsRLE;
++  entry->blob_support=MagickFalse;
+   entry->adjoin=MagickFalse;
+   entry->description=ConstantString("Utah Run length encoded image");
+   entry->module=ConstantString("RLE");

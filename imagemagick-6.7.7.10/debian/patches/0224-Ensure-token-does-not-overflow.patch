@@ -1,0 +1,95 @@
+Backport of:
+
+From 98eaee68fb91ffdbea8edae3935bbfe34b4e2740 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Fri, 25 Mar 2016 10:12:38 -0400
+Subject: [PATCH] Ensure token does not overflow
+
+This prepare fix for CVE-2017-10928
+
+origin; https://github.com/ImageMagick/ImageMagick/commit/4b85d29608d5bc0ab641f49e80b6cf8965928fb4
+bug: https://github.com/ImageMagick/ImageMagick/issues/539
+bug-debian: https://bugs.debian.org/867367
+
+(cherry picked from commit 4b85d29608d5bc0ab641f49e80b6cf8965928fb4)
+---
+ magick/token.c | 28 ++++++++++++++++++++--------
+ 1 file changed, 20 insertions(+), 8 deletions(-)
+
+Index: imagemagick-6.7.7.10/magick/token.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/token.c	2017-07-21 09:39:41.689233971 -0400
++++ imagemagick-6.7.7.10/magick/token.c	2017-07-21 09:42:01.621240496 -0400
+@@ -176,6 +176,10 @@ MagickExport void GetMagickToken(const c
+   register ssize_t
+     i;
+ 
++  size_t
++    extent = MaxTextExtent-1;
++
++
+   assert(start != (const char *) NULL);
+   assert(token != (char *) NULL);
+   i=0;
+@@ -213,15 +217,18 @@ MagickExport void GetMagickToken(const c
+                 p++;
+                 break;
+               }
+-          token[i++]=(*p);
++          if (i < extent)
++            token[i++]=(*p);
+         }
+         break;
+       }
+       case '/':
+       {
+-        token[i++]=(*p++);
+-        if ((*p == '>') || (*p == '/'))
++        if (i < extent)
+           token[i++]=(*p++);
++        if ((*p == '>') || (*p == '/'))
++          if (i < extent)
++            token[i++]=(*p++);
+         break;
+       }
+       default:
+@@ -234,15 +241,18 @@ MagickExport void GetMagickToken(const c
+         if ((p != q) && (*p != ','))
+           {
+             for ( ; (p < q) && (*p != ','); p++)
+-              token[i++]=(*p);
++              if (i < extent)
++                token[i++]=(*p);
+             if (*p == '%')
+-              token[i++]=(*p++);
++              if (i < extent)
++                token[i++]=(*p++);
+             break;
+           }
+         if ((*p != '\0') && (isalpha((int) ((unsigned char) *p)) == 0) &&
+             (*p != *DirectorySeparator) && (*p != '#') && (*p != '<'))
+           {
+-            token[i++]=(*p++);
++            if (i < extent)
++              token[i++]=(*p++);
+             break;
+           }
+         for ( ; *p != '\0'; p++)
+@@ -252,13 +262,15 @@ MagickExport void GetMagickToken(const c
+             break;
+           if ((i > 0) && (*p == '<'))
+             break;
+-          token[i++]=(*p);
++          if (i < extent)
++            token[i++]=(*p);
+           if (*p == '>')
+             break;
+           if (*p == '(')
+             for (p++; *p != '\0'; p++)
+             {
+-              token[i++]=(*p);
++              if (i < extent)
++                token[i++]=(*p);
+               if ((*p == ')') && (*(p-1) != '\\'))
+                 break;
+             }

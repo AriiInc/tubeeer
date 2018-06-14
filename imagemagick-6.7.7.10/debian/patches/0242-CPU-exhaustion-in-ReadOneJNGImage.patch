@@ -1,0 +1,53 @@
+From 26c13ab76507869112cf21037890e24a0123fc37 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Sat, 24 Jun 2017 12:14:47 -0400
+Subject: [PATCH] CPU exhaustion in ReadOneJNGImage
+
+Due to lack of validation of PNG format, imagemagick could loop
+2^32 in a CPU intensive loop.
+
+bug: https://github.com/ImageMagick/ImageMagick/issues/526
+bug: https://github.com/ImageMagick/ImageMagick/issues/527
+bug-debian: https://bugs.debian.org/867824
+bug-debian: https://bugs.debian.org/867825
+origin: https://github.com/ImageMagick/ImageMagick/commit/5d43fdf7a1f18f36e45225f121697d7f13c8cba9
+
+(cherry picked from commit 5d43fdf7a1f18f36e45225f121697d7f13c8cba9)
+---
+ coders/png.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/png.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/png.c	2017-07-21 10:01:56.337296207 -0400
++++ imagemagick-6.7.7.10/coders/png.c	2017-07-21 10:01:56.333296207 -0400
+@@ -3923,7 +3923,13 @@ static Image *ReadOneJNGImage(MngInfo *m
+           ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
+ 
+         for (i=0; i < (ssize_t) length; i++)
+-          chunk[i]=(unsigned char) ReadBlobByte(image);
++        {
++          int
++            c;
++
++          c=ReadBlobByte(image);
++          chunk[i]=(unsigned char) c;
++        }
+ 
+         p=chunk;
+       }
+@@ -4786,7 +4792,13 @@ static Image *ReadOneMNGImage(MngInfo* m
+               ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
+ 
+             for (i=0; i < (ssize_t) length; i++)
+-              chunk[i]=(unsigned char) ReadBlobByte(image);
++            {
++              int
++                c;
++
++              c=ReadBlobByte(image);
++              chunk[i]=(unsigned char) c;
++            }
+ 
+             p=chunk;
+           }

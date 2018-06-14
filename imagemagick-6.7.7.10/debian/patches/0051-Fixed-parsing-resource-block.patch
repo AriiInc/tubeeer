@@ -1,0 +1,73 @@
+Backport of:
+
+From 33b2d377b94eb738011bc7d5e90ca0a16ce4d471 Mon Sep 17 00:00:00 2001
+From: dirk <dirk@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Tue, 16 Dec 2014 22:50:20 +0000
+Subject: [PATCH] Fixed parsing resource block.
+
+Avoid a crash
+
+git-svn-id: https://subversion.imagemagick.org/subversion/ImageMagick/branches/ImageMagick-6@17305 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+origin:  http://trac.imagemagick.org/changeset/17305
+---
+ coders/psd.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/psd.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/psd.c	2016-11-11 12:35:31.086183599 -0500
++++ imagemagick-6.7.7.10/coders/psd.c	2016-11-11 12:36:39.126882963 -0500
+@@ -416,7 +416,7 @@
+   }
+ }
+ 
+-static MagickBooleanType ParseImageResourceBlocks(Image *image,
++static void ParseImageResourceBlocks(Image *image,
+   const unsigned char *blocks,size_t length)
+ {
+   const unsigned char
+@@ -434,7 +434,7 @@
+     short_sans;
+ 
+   if (length < 16)
+-    return(MagickFalse);
++    return;
+   profile=BlobToStringInfo((const void *) NULL,length);
+   SetStringInfoDatum(profile,blocks);
+   (void) SetImageProfile(image,"8bim",profile);
+@@ -447,6 +447,8 @@
+     p=PushShortPixel(MSBEndian,p,&id);
+     p=PushShortPixel(MSBEndian,p,&short_sans);
+     p=PushLongPixel(MSBEndian,p,&count);
++    if (p+count > blocks+length)
++      return;
+     switch (id)
+     {
+       case 0x03ed:
+@@ -485,7 +487,7 @@
+     if ((count & 0x01) != 0)
+       p++;
+   }
+-  return(MagickTrue);
++  return;
+ }
+ 
+ static CompositeOperator PSDBlendModeToCompositeOperator(const char *mode)
+@@ -928,7 +930,7 @@
+         (void) LogMagickEvent(CoderEvent,GetMagickModule(),
+           "  reading image resource blocks - %.20g bytes",(double)
+           ((MagickOffsetType) length));
+-      blocks=(unsigned char *) AcquireQuantumMemory((size_t) length+16,
++      blocks=(unsigned char *) AcquireQuantumMemory((size_t) length,
+         sizeof(*blocks));
+       if (blocks == (unsigned char *) NULL)
+         ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
+@@ -939,7 +941,7 @@
+           blocks=(unsigned char *) RelinquishMagickMemory(blocks);
+           ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+         }
+-      (void) ParseImageResourceBlocks(image,blocks,(size_t) length);
++      ParseImageResourceBlocks(image,blocks,(size_t) length);
+       blocks=(unsigned char *) RelinquishMagickMemory(blocks);
+     }
+   /*

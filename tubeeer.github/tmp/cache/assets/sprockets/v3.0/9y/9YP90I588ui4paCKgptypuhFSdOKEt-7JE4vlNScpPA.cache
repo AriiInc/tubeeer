@@ -1,0 +1,16 @@
+I"3(function() {
+  $(document).on('ready page:load', function() {
+    var UI;
+    return UI = new SquireUI({
+      replace: 'textarea#seditor',
+      buildPath: "/",
+      height: 300
+    });
+  });
+
+  $('form').submit(function() {
+    $('#squire_description').val(UI.getHTML()).change();
+  });
+
+}).call(this);
+:ET

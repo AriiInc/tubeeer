@@ -1,0 +1,42 @@
+From 4400cc5440a48da45e083d9e38b7bd4eb928accc Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bastien=20ROUCARI=C3=88S?= <roucaries.bastien@gmail.com>
+Date: Wed, 24 Oct 2012 12:07:59 +0200
+Subject: [PATCH] Magick++ fix a memory leak
+
+Original code leak memory in case of corrupted image. When image->exception is thrown, the following DestroyExceptionInfo will not be executed, thus lead to a leak.
+
+Fix it by adding  (void) DestroyExceptionInfo( &exceptionInfo ) before throwing.
+
+Origin: upstream, http://www.imagemagick.org/discourse-server/viewtopic.php?f=3&t=21948
+Bug: http://www.imagemagick.org/discourse-server/viewtopic.php?f=3&t=21948
+Author: John Cristy <quetzlzacatenango@imagemagick.org>
+Applied-Upstream: 6.8.0.1
+---
+ Magick++/lib/Image.cpp | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/Magick++/lib/Image.cpp b/Magick++/lib/Image.cpp
+index e0c4379..c93388b 100644
+--- a/Magick++/lib/Image.cpp
++++ b/Magick++/lib/Image.cpp
+@@ -1601,11 +1601,14 @@ void Magick::Image::read ( const std::string &imageSpec_ )
+       DestroyImageList( next );
+  
+     }
+-  replaceImage( image );
+-  throwException( exceptionInfo );
+   if ( image )
+-    throwException( image->exception );
++    {
++      (void) DestroyExceptionInfo( &exceptionInfo );
++      throwException( image->exception );
++    }
++  throwException( exceptionInfo );
+   (void) DestroyExceptionInfo( &exceptionInfo );
++  replaceImage( image );
+ }
+ 
+ // Read image of specified size into current object
+-- 
+1.8.3.2
+

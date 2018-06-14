@@ -1,0 +1,20 @@
+Description: Fix buffer overflow in icon parsing code
+ This patch backports a small extract of a larger upstream
+ commit that addresses this specific issue.
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1459747
+Origin: backport, https://github.com/ImageMagick/ImageMagick/commit/0f6fc2d5bf8f500820c3dbcf0d23ee14f2d9f734
+Applied-Upstream: 7.0.0
+Last-Update: 2015-11-26
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/coders/icon.c
++++ b/coders/icon.c
+@@ -277,6 +277,8 @@
+           Icon image encoded as a compressed PNG image.
+         */
+         length=icon_file.directory[i].size;
++        if (~length < 12)
++          ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
+         png=(unsigned char *) AcquireQuantumMemory(length+16,sizeof(*png));
+         if (png == (unsigned char *) NULL)
+           ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");

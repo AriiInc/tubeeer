@@ -1,0 +1,77 @@
+Backport of:
+
+From 2e488845fbf7c6675ade42412f97f9abef091f33 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Mon, 4 Jul 2016 09:04:52 -0400
+Subject: [PATCH] Prevent possible stack overflow
+
+Prevent stack overflow by checking if string is null
+
+(cherry picked from commit 6ea4d4e9eeac1e287bdbfda84f67fb1e50242fb5)
+
+origin: upstream, https://github.com/ImageMagick/ImageMagick/commit/6ea4d4e9eeac1e287bdbfda84f67fb1e50242fb5
+bug-debian: https://bugs.debian.org/833812
+---
+ coders/clip.c      | 3 ++-
+ coders/histogram.c | 3 ++-
+ coders/mask.c      | 3 ++-
+ coders/thumbnail.c | 3 ++-
+ coders/vid.c       | 3 ++-
+ 5 files changed, 10 insertions(+), 5 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/clip.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/clip.c	2016-11-14 11:15:05.301351626 -0500
++++ imagemagick-6.7.7.10/coders/clip.c	2016-11-14 11:15:05.297351626 -0500
+@@ -170,7 +170,8 @@
+   (void) CopyMagickString(clip_image->filename,image->filename,MaxTextExtent);
+   write_info=CloneImageInfo(image_info);
+   (void) SetImageInfo(write_info,1,&image->exception);
+-  if (LocaleCompare(write_info->magick,"CLIP") == 0)
++  if ((*write_info->magick == '\0') ||
++      (LocaleCompare(write_info->magick,"CLIP") == 0))
+     (void) FormatLocaleString(clip_image->filename,MaxTextExtent,"miff:%s",
+       write_info->filename);
+   status=WriteImage(write_info,clip_image);
+Index: imagemagick-6.7.7.10/coders/histogram.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/histogram.c	2016-11-14 11:15:05.301351626 -0500
++++ imagemagick-6.7.7.10/coders/histogram.c	2016-11-14 11:15:05.297351626 -0500
+@@ -382,7 +382,8 @@
+     MaxTextExtent);
+   write_info=CloneImageInfo(image_info);
+   (void) SetImageInfo(write_info,1,&image->exception);
+-  if (LocaleCompare(write_info->magick,"HISTOGRAM") == 0)
++  if ((*write_info->magick == '\0') ||
++      (LocaleCompare(write_info->magick,"HISTOGRAM") == 0))
+     (void) FormatLocaleString(histogram_image->filename,MaxTextExtent,
+       "miff:%s",write_info->filename);
+   status=WriteImage(write_info,histogram_image);
+Index: imagemagick-6.7.7.10/coders/thumbnail.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/thumbnail.c	2016-11-14 11:15:05.301351626 -0500
++++ imagemagick-6.7.7.10/coders/thumbnail.c	2016-11-14 11:15:05.297351626 -0500
+@@ -209,7 +209,8 @@
+     MaxTextExtent);
+   write_info=CloneImageInfo(image_info);
+   (void) SetImageInfo(write_info,1,&image->exception);
+-  if (LocaleCompare(write_info->magick,"THUMBNAIL") == 0)
++  if ((*write_info->magick == '\0') ||
++      (LocaleCompare(write_info->magick,"THUMBNAIL") == 0))
+     (void) FormatLocaleString(thumbnail_image->filename,MaxTextExtent,
+       "miff:%s",write_info->filename);
+   status=WriteImage(write_info,thumbnail_image);
+Index: imagemagick-6.7.7.10/coders/vid.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/vid.c	2016-11-14 11:15:05.301351626 -0500
++++ imagemagick-6.7.7.10/coders/vid.c	2016-11-14 11:15:05.297351626 -0500
+@@ -332,7 +332,8 @@
+     MaxTextExtent);
+   write_info=CloneImageInfo(image_info);
+   (void) SetImageInfo(write_info,1,&image->exception);
+-  if (LocaleCompare(write_info->magick,"VID") == 0)
++  if ((*write_info->magick == '\0') ||
++      (LocaleCompare(write_info->magick,"VID") == 0))
+     (void) FormatLocaleString(montage_image->filename,MaxTextExtent,
+       "miff:%s",write_info->filename);
+   status=WriteImage(write_info,montage_image);

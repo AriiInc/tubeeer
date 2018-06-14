@@ -1,0 +1,38 @@
+From 904be9ae4ba4ded4b8250fce8c2b591b84cd064d Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Sat, 24 Jun 2017 12:10:19 -0400
+Subject: [PATCH] CPU exhaustion in ReadOneDJVUImag
+
+Due to lack of format validation, a crafted file will cause a loop to run endless.
+
+bug: https://github.com/ImageMagick/ImageMagick/issues/528
+bug-debian: https://bugs.debian.org/867826
+origin: https://github.com/ImageMagick/ImageMagick/commit/78b819628b6a9429f0c33b72e695b4df0b32faea
+
+(cherry picked from commit 78b819628b6a9429f0c33b72e695b4df0b32faea)
+---
+ coders/djvu.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+Index: imagemagick-6.7.7.10/coders/djvu.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/djvu.c	2017-07-21 10:01:59.129296337 -0400
++++ imagemagick-6.7.7.10/coders/djvu.c	2017-07-21 10:01:59.125296337 -0400
+@@ -612,6 +612,7 @@ static Image *ReadOneDJVUImage(LoadConte
+                                 if (tag == 0) break;
+                                 ddjvu_message_pop(lc->context);
+                         } while ((message = ddjvu_message_peek(lc->context)));
++                if (tag == 0) break;
+         } while (!ddjvu_page_decoding_done(lc->page));
+ 
+         ddjvu_document_get_pageinfo(lc->document, pagenum, &info);
+@@ -886,7 +887,8 @@ static Image *ReadDJVUImage(const ImageI
+         break;
+   }
+   djvu_close_lc(lc);
+-  (void) CloseBlob(images);
++  if (images != (Image *) NULL)
++    (void) CloseBlob(images);
+   if (image != (Image *) NULL)
+     image=DestroyImageList(image);
+ 

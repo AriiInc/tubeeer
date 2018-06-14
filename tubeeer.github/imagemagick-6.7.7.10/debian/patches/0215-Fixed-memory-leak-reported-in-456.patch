@@ -1,0 +1,29 @@
+From 50488937f29fcc3f03ddb5a3982d4df4951efb76 Mon Sep 17 00:00:00 2001
+From: Dirk Lemstra <dirk@git.imagemagick.org>
+Date: Tue, 2 May 2017 08:32:19 +0200
+Subject: [PATCH] Fixed memory leak reported in #456.
+
+Specially crafted arts file could lead to memory leak
+
+origin: https://github.com/ImageMagick/ImageMagick/commit/7b8c1df65b25d6671f113e2306982eded44ce3b4
+bug: https://github.com/ImageMagick/ImageMagick/issues/456
+---
+ coders/art.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+Index: imagemagick-6.7.7.10/coders/art.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/art.c	2017-05-26 09:18:01.341776396 -0400
++++ imagemagick-6.7.7.10/coders/art.c	2017-05-26 09:18:01.337776345 -0400
+@@ -178,7 +178,10 @@ static Image *ReadARTImage(const ImageIn
+       break;
+     count=ReadBlob(image,length,pixels);
+     if (count != (ssize_t) length)
+-      ThrowReaderException(CorruptImageError,"UnableToReadImageData");
++      {
++        quantum_info=DestroyQuantumInfo(quantum_info);
++        ThrowReaderException(CorruptImageError,"UnableToReadImageData");
++      }
+     (void) ImportQuantumPixels(image,(CacheView *) NULL,quantum_info,
+       quantum_type,pixels,exception);
+     count=ReadBlob(image,(size_t) (-(ssize_t) length) & 0x01,pixels);

@@ -1,0 +1,1574 @@
+Backport of:
+
+From 45b2d5aefde5f5ccd4f1bd6f810becfe7af7f9aa Mon Sep 17 00:00:00 2001
+From: cristy <urban-warrior@git.imagemagick.org>
+Date: Sun, 14 Dec 2014 23:36:27 +0000
+Subject: [PATCH] Do not ignore SetImageBias() bias value
+
+This patch is needed in order to bail out early in case of exception, and thus avoiding a DOS
+
+origin: upstream, https://github.com/ImageMagick/ImageMagick/commit/f6e9d0d9955e85bdd7540b251cd50d598dacc5e6
+
+Last-Update: 2017-02-22
+
+---
+ coders/aai.c        |  6 ++++++
+ coders/art.c        |  6 ++++++
+ coders/avs.c        |  6 ++++++
+ coders/bgr.c        |  6 ++++++
+ coders/bmp.c        |  6 ++++++
+ coders/cin.c        |  8 +++++++-
+ coders/clipboard.c  | 10 ++++++++--
+ coders/cmyk.c       |  6 ++++++
+ coders/cut.c        |  8 +++++++-
+ coders/dcm.c        |  6 ++++++
+ coders/dds.c        |  6 ++++++
+ coders/dib.c        |  8 +++++++-
+ coders/djvu.c       |  9 ++++++++-
+ coders/dps.c        |  6 ++++++
+ coders/dpx.c        |  6 ++++++
+ coders/emf.c        |  6 ++++++
+ coders/exr.c        |  6 ++++++
+ coders/fax.c        |  6 ++++++
+ coders/fits.c       |  6 ++++++
+ coders/fpx.c        |  6 ++++++
+ coders/gif.c        |  6 ++++++
+ coders/gray.c       |  6 ++++++
+ coders/hald.c       |  9 +++++++--
+ coders/hdr.c        |  6 ++++++
+ coders/hrz.c        |  6 ++++++
+ coders/icon.c       |  6 ++++++
+ coders/ipl.c        |  8 +++++++-
+ coders/jbig.c       |  6 ++++++
+ coders/jp2.c        |  6 ++++++
+ coders/jpeg.c       |  6 ++++++
+ coders/label.c      |  6 ++++++
+ coders/mac.c        |  6 ++++++
+ coders/map.c        |  6 ++++++
+ coders/mat.c        |  6 ++++++
+ coders/miff.c       |  6 ++++++
+ coders/mono.c       |  6 ++++++
+ coders/mpc.c        |  6 ++++++
+ coders/mtv.c        |  6 ++++++
+ coders/mvg.c        |  6 ++++++
+ coders/null.c       |  9 +++++++++
+ coders/otb.c        |  6 ++++++
+ coders/palm.c       |  6 ++++++
+ coders/pango.c      | 10 ++++++++--
+ coders/pcd.c        |  6 ++++++
+ coders/pcx.c        |  6 ++++++
+ coders/pdb.c        |  6 ++++++
+ coders/pict.c       |  6 ++++++
+ coders/pix.c        |  6 ++++++
+ coders/psd.c        |  6 ++++++
+ coders/raw.c        |  6 ++++++
+ coders/rgb.c        |  6 ++++++
+ coders/rgf.c        |  8 ++++++--
+ coders/rla.c        |  6 ++++++
+ coders/rle.c        |  6 ++++++
+ coders/scr.c        |  6 ++++++
+ coders/screenshot.c | 10 +++++++++-
+ coders/sct.c        |  6 ++++++
+ coders/sgi.c        |  6 ++++++
+ coders/sixel.c      |  7 ++++++-
+ coders/stegano.c    |  6 ++++++
+ coders/sun.c        |  6 ++++++
+ coders/svg.c        |  6 ++++++
+ coders/tga.c        |  6 ++++++
+ coders/tiff.c       |  6 ++++++
+ coders/tile.c       |  9 +++++++++
+ coders/tim.c        |  6 ++++++
+ coders/ttf.c        |  6 ++++++
+ coders/txt.c        | 12 ++++++++++++
+ coders/uyvy.c       |  6 ++++++
+ coders/vicar.c      |  6 ++++++
+ coders/viff.c       |  6 ++++++
+ coders/vips.c       |  6 ++++++
+ coders/wbmp.c       |  6 ++++++
+ coders/webp.c       |  6 ++++++
+ coders/wmf.c        |  9 +++++++++
+ coders/wpg.c        |  6 ++++++
+ coders/xbm.c        |  6 ++++++
+ coders/xc.c         |  6 ++++++
+ coders/xcf.c        |  6 ++++++
+ coders/xpm.c        |  6 ++++++
+ coders/xwd.c        |  6 ++++++
+ coders/ycbcr.c      | 12 ++++++++++++
+ coders/yuv.c        | 12 ++++++++++++
+ 83 files changed, 539 insertions(+), 15 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/aai.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/aai.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/aai.c	2016-11-29 08:54:13.951991131 -0500
+@@ -157,6 +157,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     pixels=(unsigned char *) AcquireQuantumMemory(image->columns,
+       4*sizeof(*pixels));
+     if (pixels == (unsigned char *) NULL) 
+Index: imagemagick-6.7.7.10/coders/art.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/art.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/art.c	2016-11-29 08:54:13.955991176 -0500
+@@ -152,6 +152,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Convert bi-level image to pixel packets.
+   */
+Index: imagemagick-6.7.7.10/coders/avs.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/avs.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/avs.c	2016-11-29 08:54:13.955991176 -0500
+@@ -157,6 +157,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     pixels=(unsigned char *) AcquireQuantumMemory(image->columns,
+       4*sizeof(*pixels));
+     if (pixels == (unsigned char *) NULL) 
+Index: imagemagick-6.7.7.10/coders/bgr.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/bgr.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/bgr.c	2016-11-29 08:54:13.955991176 -0500
+@@ -195,6 +195,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     switch (image_info->interlace)
+     {
+       case NoInterlace:
+Index: imagemagick-6.7.7.10/coders/bmp.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/bmp.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/bmp.c	2016-11-29 08:54:13.955991176 -0500
+@@ -902,6 +902,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Read image data.
+     */
+Index: imagemagick-6.7.7.10/coders/cin.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/cin.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/cin.c	2016-11-29 08:54:13.955991176 -0500
+@@ -690,11 +690,17 @@
+   image->depth=cin.image.channel[0].bits_per_pixel;
+   image->columns=cin.image.channel[0].pixels_per_line;
+   image->rows=cin.image.channel[0].lines_per_image;
+-  if (image_info->ping)
++  if (image_info->ping != MagickFalse)
+     {
+       (void) CloseBlob(image);
+       return(image);
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Convert CIN raster image to pixel packets.
+   */
+Index: imagemagick-6.7.7.10/coders/clipboard.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/clipboard.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/clipboard.c	2016-11-29 08:54:13.955991176 -0500
+@@ -134,7 +134,7 @@
+     bitmapH=(HBITMAP) GetClipboardData(CF_BITMAP);
+     hPal=(HPALETTE) GetClipboardData(CF_PALETTE);
+     CloseClipboard();
+-    if ( bitmapH == NULL )
++    if (bitmapH == NULL)
+       ThrowReaderException(CoderError,"NoBitmapOnClipboard");
+     {
+       BITMAPINFO
+@@ -161,8 +161,14 @@
+       GetObject(bitmapH,sizeof(BITMAP),(LPSTR) &bitmap);
+       if ((image->columns == 0) || (image->rows == 0))
+         {
+-          image->rows=bitmap.bmHeight;
+           image->columns=bitmap.bmWidth;
++          image->rows=bitmap.bmHeight;
++        }
++      status=SetImageExtent(image,image->columns,image->rows);
++      if (status == MagickFalse)
++        {
++          InheritException(exception,&image->exception);
++          return(DestroyImageList(image));
+         }
+       /*
+         Initialize the bitmap header info.
+Index: imagemagick-6.7.7.10/coders/cmyk.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/cmyk.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/cmyk.c	2016-11-29 08:54:13.955991176 -0500
+@@ -195,6 +195,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     SetImageColorspace(image,CMYKColorspace);
+     switch (image_info->interlace)
+     {
+Index: imagemagick-6.7.7.10/coders/cut.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/cut.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/cut.c	2016-11-29 08:54:13.955991176 -0500
+@@ -367,7 +367,13 @@
+   image->depth=8;
+   image->colors=(size_t) (GetQuantumRange(1UL*i)+1);
+ 
+-  if (image_info->ping) goto Finish;
++  if (image_info->ping != MagickFalse) goto Finish;
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+ 
+   /* ----- Do something with palette ----- */
+   if ((clone_info=CloneImageInfo(image_info)) == NULL) goto NoPalette;
+Index: imagemagick-6.7.7.10/coders/dcm.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/dcm.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/dcm.c	2016-11-29 08:57:48.278336777 -0500
+@@ -3651,6 +3651,12 @@
+     image->columns=(size_t) width;
+     image->rows=(size_t) height;
+     image->depth=depth;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        break;
++      }
+     if ((image->colormap == (PixelPacket *) NULL) && (samples_per_pixel == 1))
+       {
+         size_t
+Index: imagemagick-6.7.7.10/coders/dds.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/dds.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/dds.c	2016-11-29 08:59:40.375651810 -0500
+@@ -388,7 +388,13 @@
+         (void) CloseBlob(image);
+         return(GetFirstImageInList(image));
+       }
+-    
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
++
+     if ((decoder)(image, &dds_info) != MagickTrue)
+       {
+         (void) CloseBlob(image);
+Index: imagemagick-6.7.7.10/coders/dib.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/dib.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/dib.c	2016-11-29 08:54:13.955991176 -0500
+@@ -519,7 +519,7 @@
+   */
+   (void) ResetMagickMemory(&dib_info,0,sizeof(dib_info));
+   dib_info.size=ReadBlobLSBLong(image);
+-  if (dib_info.size!=40)
++  if (dib_info.size != 40)
+     ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+   /*
+     Microsoft Windows 3.X DIB image file.
+@@ -605,6 +605,12 @@
+         if ((geometry.height != 0) && (geometry.height < image->rows))
+           image->rows=geometry.height;
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   if (image->storage_class == PseudoClass)
+     {
+       size_t
+Index: imagemagick-6.7.7.10/coders/djvu.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/djvu.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/djvu.c	2016-11-29 08:54:13.955991176 -0500
+@@ -417,7 +417,7 @@
+                                 if (SyncAuthenticPixels(image,&image->exception) == MagickFalse)
+                                         break;
+                         }
+-                if (!image->ping)
++                if (image->ping == MagickFalse)
+                   SyncImage(image);
+         } else {
+ #if DEBUG
+@@ -576,6 +576,7 @@
+   Image *image;
+   int logging;
+   int tag;
++  MagickBooleanType status;
+ 
+         /* so, we know that the page is there! Get its dimension, and  */
+ 
+@@ -666,6 +667,12 @@
+                 image->matte = MagickTrue;
+                 /* is this useful? */
+         }
++        status=SetImageExtent(image,image->columns,image->rows);
++        if (status == MagickFalse)
++          {
++            InheritException(exception,&image->exception);
++            return(DestroyImageList(image));
++          }
+ #if DEBUG
+         printf("now filling %.20g x %.20g\n",(double) image->columns,(double)
+           image->rows);
+Index: imagemagick-6.7.7.10/coders/dps.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/dps.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/dps.c	2016-11-29 08:54:13.955991176 -0500
+@@ -327,6 +327,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   switch (image->storage_class)
+   {
+     case DirectClass:
+Index: imagemagick-6.7.7.10/coders/dpx.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/dpx.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/dpx.c	2016-11-29 09:01:49.041153716 -0500
+@@ -1018,6 +1018,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Convert DPX raster image to pixel packets.
+   */
+Index: imagemagick-6.7.7.10/coders/emf.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/emf.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/emf.c	2016-11-29 08:54:13.959991219 -0500
+@@ -507,6 +507,12 @@
+       y=0;
+       (void) GetGeometry(image_info->size,&x,&y,&image->columns,&image->rows);
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   if (image_info->page != (char *) NULL)
+     {
+       char
+Index: imagemagick-6.7.7.10/coders/exr.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/exr.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/exr.c	2016-11-29 08:54:13.959991219 -0500
+@@ -211,6 +211,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   scanline=(ImfRgba *) AcquireQuantumMemory(image->columns,sizeof(*scanline));
+   if (scanline == (ImfRgba *) NULL)
+     {
+Index: imagemagick-6.7.7.10/coders/fax.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/fax.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/fax.c	2016-11-29 08:54:13.959991219 -0500
+@@ -177,6 +177,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   status=HuffmanDecodeImage(image);
+   if (status == MagickFalse)
+     ThrowReaderException(CorruptImageError,"UnableToReadImageData");
+Index: imagemagick-6.7.7.10/coders/fits.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/fits.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/fits.c	2016-11-29 08:54:13.959991219 -0500
+@@ -419,6 +419,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Initialize image structure.
+     */
+Index: imagemagick-6.7.7.10/coders/fpx.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/fpx.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/fpx.c	2016-11-29 08:54:13.959991219 -0500
+@@ -384,6 +384,12 @@
+       FPX_ClearSystem();
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Allocate memory for the image and pixel buffer.
+   */
+Index: imagemagick-6.7.7.10/coders/gif.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/gif.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/gif.c	2016-11-29 08:54:13.959991219 -0500
+@@ -1342,6 +1342,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Decode image.
+     */
+Index: imagemagick-6.7.7.10/coders/gray.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/gray.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/gray.c	2016-11-29 09:03:10.306098300 -0500
+@@ -185,6 +185,13 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
++    SetImageColorspace(image,GRAYColorspace);
+     if (scene == 0)
+       {
+         length=GetQuantumExtent(canvas_image,quantum_info,quantum_type);
+Index: imagemagick-6.7.7.10/coders/hald.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/hald.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/hald.c	2016-11-29 09:03:49.738555545 -0500
+@@ -124,6 +124,12 @@
+   cube_size=level*level;
+   image->columns=(size_t) (level*cube_size);
+   image->rows=(size_t) (level*cube_size);
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+ #if defined(MAGICKCORE_OPENMP_SUPPORT)
+   #pragma omp parallel for schedule(static,8) shared(status) \
+     dynamic_number_threads(image,image->columns,image->rows,1)
+@@ -140,8 +146,7 @@
+ 
+     if (status == MagickFalse)
+       continue;
+-    q=QueueAuthenticPixels(image,0,y,image->columns,(size_t) level,
+-      exception);
++    q=QueueAuthenticPixels(image,0,y,image->columns,(size_t) level,exception);
+     if (q == (PixelPacket *) NULL)
+       {
+         status=MagickFalse;
+Index: imagemagick-6.7.7.10/coders/hdr.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/hdr.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/hdr.c	2016-11-29 08:54:13.959991219 -0500
+@@ -384,6 +384,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Read RGBE (red+green+blue+exponent) pixels.
+   */
+Index: imagemagick-6.7.7.10/coders/hrz.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/hrz.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/hrz.c	2016-11-29 08:54:13.959991219 -0500
+@@ -141,6 +141,12 @@
+   image->columns=256;
+   image->rows=240;
+   image->depth=8;
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   pixels=(unsigned char *) AcquireQuantumMemory(image->columns,3*
+     sizeof(*pixels));
+   if (pixels == (unsigned char *) NULL) 
+Index: imagemagick-6.7.7.10/coders/icon.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/icon.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/icon.c	2016-11-29 08:54:13.959991219 -0500
+@@ -398,6 +398,12 @@
+             (image_info->number_scenes != 0))
+           if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+             break;
++        status=SetImageExtent(image,image->columns,image->rows);
++        if (status == MagickFalse)
++          {
++            InheritException(exception,&image->exception);
++            return(DestroyImageList(image));
++          }
+         bytes_per_line=(((image->columns*icon_info.bits_per_pixel)+31) &
+           ~31) >> 3;
+         (void) bytes_per_line;
+Index: imagemagick-6.7.7.10/coders/ipl.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/ipl.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/ipl.c	2016-11-29 08:54:13.959991219 -0500
+@@ -312,9 +312,15 @@
+   {
+     SetHeaderFromIPL(image, &ipl_info);
+ 
+-  if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
++    if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+ /*
+    printf("Length: %.20g, Memory size: %.20g\n", (double) length,(double)
+      image->depth);
+Index: imagemagick-6.7.7.10/coders/jbig.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/jbig.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/jbig.c	2016-11-29 08:54:13.959991219 -0500
+@@ -217,6 +217,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Convert X bitmap image to pixel packets.
+   */
+Index: imagemagick-6.7.7.10/coders/jp2.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/jp2.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/jp2.c	2016-11-29 09:08:27.477756427 -0500
+@@ -403,6 +403,12 @@
+     }
+   image->columns=jas_image_width(jp2_image);
+   image->rows=jas_image_height(jp2_image);
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   image->compression=JPEG2000Compression;
+   switch (jas_clrspc_fam(jas_image_clrspc(jp2_image)))
+   {
+Index: imagemagick-6.7.7.10/coders/jpeg.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/jpeg.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/jpeg.c	2016-11-29 09:09:55.818767546 -0500
+@@ -1231,6 +1231,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   jpeg_pixels=(JSAMPLE *) AcquireQuantumMemory((size_t) image->columns,
+     jpeg_info.output_components*sizeof(JSAMPLE));
+   if (jpeg_pixels == (JSAMPLE *) NULL)
+Index: imagemagick-6.7.7.10/coders/label.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/label.c	2017-02-22 09:27:51.385551752 -0500
++++ imagemagick-6.7.7.10/coders/label.c	2017-02-22 09:44:58.592830846 -0500
+@@ -192,6 +192,12 @@
+   if (image->rows == 0)
+     image->rows=(size_t) floor(draw_info->pointsize+draw_info->stroke_width+
+       0.5);
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   if (SetImageBackgroundColor(image) == MagickFalse)
+     {
+       InheritException(exception,&image->exception);
+Index: imagemagick-6.7.7.10/coders/mac.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/mac.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/mac.c	2016-11-29 08:54:13.959991219 -0500
+@@ -155,6 +155,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Convert MAC raster image to pixel packets.
+   */
+Index: imagemagick-6.7.7.10/coders/map.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/map.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/map.c	2016-11-29 08:54:13.959991219 -0500
+@@ -205,6 +205,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Read image pixels.
+   */
+Index: imagemagick-6.7.7.10/coders/mat.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/mat.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/mat.c	2016-11-29 08:54:13.963991262 -0500
+@@ -865,6 +865,12 @@
+       {
+  NoMemory:ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");}
+     }
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+ 
+     /*
+       If ping is true, then only set image size and colors without
+Index: imagemagick-6.7.7.10/coders/miff.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/miff.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/miff.c	2016-11-29 08:54:13.963991262 -0500
+@@ -1232,6 +1232,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Allocate image pixels.
+     */
+Index: imagemagick-6.7.7.10/coders/mono.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/mono.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/mono.c	2016-11-29 08:54:13.963991262 -0500
+@@ -153,6 +153,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Convert bi-level image to pixel packets.
+   */
+Index: imagemagick-6.7.7.10/coders/mpc.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/mpc.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/mpc.c	2016-11-29 08:54:13.963991262 -0500
+@@ -914,6 +914,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Attach persistent pixel cache.
+     */
+Index: imagemagick-6.7.7.10/coders/mtv.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/mtv.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/mtv.c	2016-11-29 08:54:13.963991262 -0500
+@@ -157,6 +157,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Convert MTV raster image to pixel packets.
+     */
+Index: imagemagick-6.7.7.10/coders/mvg.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/mvg.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/mvg.c	2016-11-29 08:54:13.963991262 -0500
+@@ -189,6 +189,12 @@
+     DefaultResolution;
+   image->columns=(size_t) (draw_info->affine.sx*image->columns);
+   image->rows=(size_t) (draw_info->affine.sy*image->rows);
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   if (SetImageBackgroundColor(image) == MagickFalse)
+     {
+       InheritException(exception,&image->exception);
+Index: imagemagick-6.7.7.10/coders/null.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/null.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/null.c	2016-11-29 08:54:13.963991262 -0500
+@@ -99,6 +99,9 @@
+   Image
+     *image;
+ 
++  MagickBooleanType
++    status;
++
+   MagickPixelPacket
+     background;
+ 
+@@ -129,6 +132,12 @@
+     image->columns=1;
+   if (image->rows == 0)
+     image->rows=1;
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   image->matte=MagickTrue;
+   GetMagickPixelPacket(image,&background);
+   background.opacity=(MagickRealType) TransparentOpacity;
+Index: imagemagick-6.7.7.10/coders/otb.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/otb.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/otb.c	2016-11-29 08:54:13.963991262 -0500
+@@ -167,6 +167,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Convert bi-level image to pixel packets.
+   */
+Index: imagemagick-6.7.7.10/coders/palm.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/palm.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/palm.c	2016-11-29 08:54:13.963991262 -0500
+@@ -328,6 +328,12 @@
+       ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+     if ((image->columns == 0) || (image->rows == 0))
+       ThrowReaderException(CorruptImageError,"NegativeOrZeroImageSize");
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     bytes_per_row=ReadBlobMSBShort(image);
+     flags=ReadBlobMSBShort(image);
+     bits_per_pixel=(size_t) ReadBlobByte(image);
+Index: imagemagick-6.7.7.10/coders/pango.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/pango.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/pango.c	2016-11-29 09:11:03.647541678 -0500
+@@ -367,6 +367,12 @@
+       pango_layout_set_height(layout,(int) ((PANGO_SCALE*image->rows*
+         image->y_resolution+36.0)/72.0+0.5));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Render markup.
+   */
+Index: imagemagick-6.7.7.10/coders/pcd.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/pcd.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/pcd.c	2016-11-29 08:54:13.963991262 -0500
+@@ -586,6 +586,12 @@
+     image->columns<<=1;
+     image->rows<<=1;
+   }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Allocate luma and chroma memory.
+   */
+Index: imagemagick-6.7.7.10/coders/pcx.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/pcx.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/pcx.c	2016-11-29 08:54:13.963991262 -0500
+@@ -383,6 +383,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Read image data.
+     */
+Index: imagemagick-6.7.7.10/coders/pdb.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/pdb.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/pdb.c	2016-11-29 08:54:13.963991262 -0500
+@@ -405,6 +405,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   packets=(bits_per_pixel*image->columns+7)/8;
+   pixels=(unsigned char *) AcquireQuantumMemory(packets+257UL,image->rows*
+     sizeof(*pixels));
+Index: imagemagick-6.7.7.10/coders/pict.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/pict.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/pict.c	2016-11-29 08:54:13.963991262 -0500
+@@ -902,6 +902,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     if ((version == 1) || ((TellBlob(image) % 2) != 0))
+       code=ReadBlobByte(image);
+     if (version == 2)
+Index: imagemagick-6.7.7.10/coders/pix.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/pix.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/pix.c	2016-11-29 08:54:13.963991262 -0500
+@@ -160,6 +160,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Convert PIX raster image to pixel packets.
+     */
+Index: imagemagick-6.7.7.10/coders/psd.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/psd.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/psd.c	2016-11-29 08:54:13.963991262 -0500
+@@ -856,6 +856,12 @@
+   image->depth=psd_info.depth;
+   image->columns=psd_info.columns;
+   image->rows=psd_info.rows;
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   if (SetImageBackgroundColor(image) == MagickFalse)
+     {
+       InheritException(exception,&image->exception);
+Index: imagemagick-6.7.7.10/coders/raw.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/raw.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/raw.c	2016-11-29 08:54:13.963991262 -0500
+@@ -180,6 +180,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     if (scene == 0)
+       {
+         length=GetQuantumExtent(canvas_image,quantum_info,quantum_type);
+Index: imagemagick-6.7.7.10/coders/rgb.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/rgb.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/rgb.c	2016-11-29 08:54:13.963991262 -0500
+@@ -199,6 +199,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     switch (image_info->interlace)
+     {
+       case NoInterlace:
+Index: imagemagick-6.7.7.10/coders/rla.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/rla.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/rla.c	2016-11-29 08:54:13.963991262 -0500
+@@ -259,6 +259,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   scanlines=(ssize_t *) AcquireQuantumMemory(image->rows,sizeof(*scanlines));
+   if (scanlines == (ssize_t *) NULL)
+     ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
+Index: imagemagick-6.7.7.10/coders/rle.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/rle.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/rle.c	2016-11-29 08:54:13.963991262 -0500
+@@ -305,6 +305,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Allocate RLE pixels.
+     */
+Index: imagemagick-6.7.7.10/coders/scr.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/scr.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/scr.c	2016-11-29 08:54:13.963991262 -0500
+@@ -155,6 +155,12 @@
+     }
+   image->columns = 256;
+   image->rows = 192;
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   count=ReadBlob(image,6144,(unsigned char *) zxscr);
+   (void) count;
+   count=ReadBlob(image,768,(unsigned char *) zxattr);
+Index: imagemagick-6.7.7.10/coders/sct.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/sct.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/sct.c	2016-11-29 08:54:13.963991262 -0500
+@@ -223,6 +223,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Convert SCT raster image to pixel packets.
+   */
+Index: imagemagick-6.7.7.10/coders/sgi.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/sgi.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/sgi.c	2016-11-29 08:54:13.967991306 -0500
+@@ -371,6 +371,12 @@
+     if ((image_info->ping != MagickFalse)  && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Allocate SGI pixels.
+     */
+Index: imagemagick-6.7.7.10/coders/stegano.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/stegano.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/stegano.c	2016-11-29 08:54:13.967991306 -0500
+@@ -168,6 +168,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Get hidden watermark from low-order bits of image.
+   */
+Index: imagemagick-6.7.7.10/coders/sun.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/sun.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/sun.c	2016-11-29 08:54:13.967991306 -0500
+@@ -402,6 +402,12 @@
+         (void) CloseBlob(image);
+         return(GetFirstImageInList(image));
+       }
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     if ((sun_info.length*sizeof(*sun_data))/sizeof(*sun_data) !=
+         sun_info.length || !sun_info.length)
+       ThrowReaderException(ResourceLimitError,"ImproperImageHeader");
+Index: imagemagick-6.7.7.10/coders/svg.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/svg.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/svg.c	2016-11-29 09:11:44.884011387 -0500
+@@ -2858,6 +2858,12 @@
+       image->columns=gdk_pixbuf_get_width(pixel_info);
+       image->rows=gdk_pixbuf_get_height(pixel_info);
+ #endif
++        status=SetImageExtent(image,image->columns,image->rows);
++        if (status == MagickFalse)
++          {
++            InheritException(exception,&image->exception);
++            return(DestroyImageList(image));
++          }
+       image->matte=MagickTrue;
+       SetImageProperty(image,"svg:base-uri",
+         rsvg_handle_get_base_uri(svg_handle));
+Index: imagemagick-6.7.7.10/coders/tga.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/tga.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/tga.c	2016-11-29 08:54:13.967991306 -0500
+@@ -288,6 +288,12 @@
+       (void) SetImageProperty(image,"comment",comment);
+       comment=DestroyString(comment);
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   (void) ResetMagickMemory(&pixel,0,sizeof(pixel));
+   pixel.opacity=(Quantum) OpaqueOpacity;
+   if (tga_info.colormap_type != 0)
+Index: imagemagick-6.7.7.10/coders/tiff.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/tiff.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/tiff.c	2016-11-29 08:54:13.967991306 -0500
+@@ -1003,6 +1003,12 @@
+     image->columns=(size_t) width;
+     image->rows=(size_t) height;
+     image->depth=(size_t) bits_per_sample;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     if (image->debug != MagickFalse)
+       (void) LogMagickEvent(CoderEvent,GetMagickModule(),"Image depth: %.20g",
+         (double) image->depth);
+Index: imagemagick-6.7.7.10/coders/tile.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/tile.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/tile.c	2016-11-29 08:54:13.967991306 -0500
+@@ -94,6 +94,9 @@
+   ImageInfo
+     *read_info;
+ 
++  MagickBooleanType
++    status;
++
+   /*
+     Initialize Image structure.
+   */
+@@ -114,6 +117,12 @@
+   image=AcquireImage(image_info);
+   if ((image->columns == 0) || (image->rows == 0))
+     ThrowReaderException(OptionError,"MustSpecifyImageSize");
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   if (*image_info->filename == '\0')
+     ThrowReaderException(OptionError,"MustSpecifyAnImageName");
+   image->colorspace=tile_image->colorspace;
+Index: imagemagick-6.7.7.10/coders/tim.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/tim.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/tim.c	2016-11-29 08:54:13.967991306 -0500
+@@ -221,6 +221,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Read image data.
+     */
+Index: imagemagick-6.7.7.10/coders/ttf.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/ttf.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/ttf.c	2016-11-29 08:54:13.967991306 -0500
+@@ -220,6 +220,12 @@
+       image=DestroyImageList(image);
+       return((Image *) NULL);
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Color canvas with background color
+   */
+Index: imagemagick-6.7.7.10/coders/txt.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/txt.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/txt.c	2016-11-29 08:54:13.967991306 -0500
+@@ -227,6 +227,12 @@
+     delta.x)+0.5);
+   image->rows=(size_t) floor((((double) page.height*image->y_resolution)/
+     delta.y)+0.5);
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   image->page.x=0;
+   image->page.y=0;
+   texture=(Image *) NULL;
+@@ -431,6 +437,12 @@
+     image->rows=height;
+     for (depth=1; (GetQuantumRange(depth)+1) < max_value; depth++) ;
+     image->depth=depth;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     LocaleLower(colorspace);
+     i=(ssize_t) strlen(colorspace)-1;
+     image->matte=MagickFalse;
+Index: imagemagick-6.7.7.10/coders/uyvy.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/uyvy.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/uyvy.c	2016-11-29 08:54:13.967991306 -0500
+@@ -144,6 +144,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Accumulate UYVY, then unpack into two pixels.
+   */
+Index: imagemagick-6.7.7.10/coders/vicar.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/vicar.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/vicar.c	2016-11-29 08:54:13.967991306 -0500
+@@ -287,6 +287,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Read VICAR pixels.
+   */
+Index: imagemagick-6.7.7.10/coders/viff.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/viff.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/viff.c	2016-11-29 08:54:13.967991306 -0500
+@@ -495,6 +495,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     /*
+       Allocate VIFF pixels.
+     */
+Index: imagemagick-6.7.7.10/coders/wbmp.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/wbmp.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/wbmp.c	2016-11-29 08:54:13.967991306 -0500
+@@ -184,6 +184,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Convert bi-level image to pixel packets.
+   */
+Index: imagemagick-6.7.7.10/coders/webp.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/webp.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/webp.c	2016-11-29 09:13:09.904977661 -0500
+@@ -162,6 +162,12 @@
+     ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
+   image->columns=(size_t) width;
+   image->rows=(size_t) height;
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   p=pixels;
+   for (y=0; y < (ssize_t) image->rows; y++)
+   {
+Index: imagemagick-6.7.7.10/coders/wmf.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/wmf.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/wmf.c	2016-11-29 08:54:13.971991349 -0500
+@@ -2574,6 +2574,9 @@
+   Image
+     *image;
+ 
++  MagickBooleanType
++    status;
++
+   unsigned long
+     wmf_options_flags = 0;
+ 
+@@ -2865,6 +2868,12 @@
+           "leave ReadWMFImage()");
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   if (image->debug != MagickFalse)
+     (void) LogMagickEvent(CoderEvent,GetMagickModule(),
+        "  Creating canvas image with size %lux%lu",(unsigned long) image->rows,
+Index: imagemagick-6.7.7.10/coders/wpg.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/wpg.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/wpg.c	2016-11-29 08:54:13.971991349 -0500
+@@ -1410,6 +1410,12 @@
+          ThrowReaderException(CoderError,"DataEncodingSchemeIsNotSupported");
+       }
+    }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+ 
+  Finish:
+   (void) CloseBlob(image);
+Index: imagemagick-6.7.7.10/coders/xbm.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/xbm.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/xbm.c	2016-11-29 08:54:13.971991349 -0500
+@@ -293,6 +293,12 @@
+       (void) CloseBlob(image);
+       return(GetFirstImageInList(image));
+     }
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   /*
+     Initialize hex values.
+   */
+Index: imagemagick-6.7.7.10/coders/xc.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/xc.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/xc.c	2016-11-29 08:54:13.971991349 -0500
+@@ -130,6 +130,12 @@
+     image->columns=1;
+   if (image->rows == 0)
+     image->rows=1;
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   (void) CopyMagickString(image->filename,image_info->filename,MaxTextExtent);
+   status=QueryMagickColor((char *) image_info->filename,&color,exception);
+   if (status == MagickFalse)
+Index: imagemagick-6.7.7.10/coders/xcf.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/xcf.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/xcf.c	2016-11-29 09:13:43.861362773 -0500
+@@ -1279,6 +1279,12 @@
+       XCFLayerInfo
+         *layer_info;
+ 
++      status=SetImageExtent(image,image->columns,image->rows);
++      if (status == MagickFalse)
++        {
++          InheritException(exception,&image->exception);
++          return(DestroyImageList(image));
++        }
+       /* 
+         the read pointer
+       */
+Index: imagemagick-6.7.7.10/coders/xpm.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/xpm.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/xpm.c	2016-11-29 08:54:13.971991349 -0500
+@@ -403,6 +403,12 @@
+       /*
+         Read image pixels.
+       */
++      status=SetImageExtent(image,image->columns,image->rows);
++      if (status == MagickFalse)
++        {
++          InheritException(exception,&image->exception);
++          return(DestroyImageList(image));
++        }
+       for (y=0; y < (ssize_t) image->rows; y++)
+       {
+         p=NextXPMLine(p);
+Index: imagemagick-6.7.7.10/coders/xwd.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/xwd.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/xwd.c	2016-11-29 08:54:13.971991349 -0500
+@@ -398,6 +398,12 @@
+   image->columns=(size_t) ximage->width;
+   image->rows=(size_t) ximage->height;
+   image->depth=8;
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   if ((header.ncolors == 0U) || (ximage->red_mask != 0) ||
+       (ximage->green_mask != 0) || (ximage->blue_mask != 0))
+     image->storage_class=DirectClass;
+Index: imagemagick-6.7.7.10/coders/ycbcr.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/ycbcr.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/ycbcr.c	2016-11-29 08:54:13.971991349 -0500
+@@ -147,6 +147,12 @@
+   image=AcquireImage(image_info);
+   if ((image->columns == 0) || (image->rows == 0))
+     ThrowReaderException(OptionError,"MustSpecifyImageSize");
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   SetImageColorspace(image,YCbCrColorspace);
+   if (image_info->interlace != PartitionInterlace)
+     {
+@@ -202,6 +208,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     SetImageColorspace(image,YCbCrColorspace);
+     switch (image_info->interlace)
+     {
+Index: imagemagick-6.7.7.10/coders/yuv.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/yuv.c	2016-11-29 08:54:13.979991436 -0500
++++ imagemagick-6.7.7.10/coders/yuv.c	2016-11-29 08:54:13.971991349 -0500
+@@ -145,6 +145,12 @@
+   image=AcquireImage(image_info);
+   if ((image->columns == 0) || (image->rows == 0))
+     ThrowReaderException(OptionError,"MustSpecifyImageSize");
++  status=SetImageExtent(image,image->columns,image->rows);
++  if (status == MagickFalse)
++    {
++      InheritException(exception,&image->exception);
++      return(DestroyImageList(image));
++    }
+   quantum=(size_t) (image->depth <= 8 ? 1 : 2);
+   interlace=image_info->interlace;
+   horizontal_factor=2;
+@@ -211,6 +217,12 @@
+     if ((image_info->ping != MagickFalse) && (image_info->number_scenes != 0))
+       if (image->scene >= (image_info->scene+image_info->number_scenes-1))
+         break;
++    status=SetImageExtent(image,image->columns,image->rows);
++    if (status == MagickFalse)
++      {
++        InheritException(exception,&image->exception);
++        return(DestroyImageList(image));
++      }
+     if (interlace == PartitionInterlace)
+       {
+         AppendImageFormat("Y",image->filename);

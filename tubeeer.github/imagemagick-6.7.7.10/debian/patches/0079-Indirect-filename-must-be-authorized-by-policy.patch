@@ -1,0 +1,57 @@
+Description: Indirect filename must be authorized by policy
+Origin: upstream, https://github.com/ImageMagick/ImageMagick/commit/89ce096de81428c1b15b44ec97eb5a7c7d4e0f8b, https://github.com/ImageMagick/ImageMagick/commit/58a2ce1638c7cca4db9c9a70ea841b34c8932490
+Bug: https://www.imagemagick.org/discourse-server/viewtopic.php?f=4&t=29588
+Bug-CVE: CVE-2016-3714
+Bug-Debian: https://bugs.debian.org/823542
+Last-Update: 2016-05-15
+---
+--- a/magick/property.c
++++ b/magick/property.c
+@@ -66,6 +66,7 @@
+ #include "magick/monitor.h"
+ #include "magick/montage.h"
+ #include "magick/option.h"
++#include "magick/policy.h"
+ #include "magick/profile.h"
+ #include "magick/property.h"
+ #include "magick/quantum.h"
+@@ -2941,19 +2942,28 @@
+     (void) LogMagickEvent(TraceEvent,GetMagickModule(),"%s",image->filename);
+ 
+   if ((embed_text == (const char *) NULL) || (*embed_text == '\0'))
+-    return((char *) NULL);
++    return(ConstantString(""));
+   p=embed_text;
+ 
+-  /* handle a '@' replace string from file */
+-  if (*p == '@') {
+-     p++;
+-     if (*p != '-' && (IsPathAccessible(p) == MagickFalse) ) {
+-       (void) ThrowMagickException(&image->exception,GetMagickModule(),
+-           OptionError,"UnableToAccessPath","%s",p);
+-       return((char *) NULL);
+-     }
+-     return(FileToString(p,~0,&image->exception));
+-  }
++  while ((isspace((int) ((unsigned char) *p)) != 0) && (*p != '\0'))
++    p++;
++  if (*p == '\0')
++    return(ConstantString(""));
++
++  if ((*p == '@') && (IsPathAccessible(p+1) != MagickFalse))
++    {
++      /* handle a '@' replace string from file */
++      if (IsRightsAuthorized(PathPolicyDomain,ReadPolicyRights,p) == MagickFalse)
++        {
++          errno=EPERM;
++          (void) ThrowMagickException(&image->exception,GetMagickModule(),
++            PolicyError,"NotAuthorized","`%s'",p);
++          return(ConstantString(""));
++        }
++      interpret_text=FileToString(p+1,~0UL,&image->exception);
++      if (interpret_text != (char *) NULL)
++        return(interpret_text);
++    }
+ 
+   /*
+     Translate any embedded format characters.

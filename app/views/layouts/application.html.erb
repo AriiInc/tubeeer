@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Tubeeer</title>
+    <%= csrf_meta_tags %>
+
+    <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+    <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+
+    
+  </head>
+
+  <body>
+
+    <!-- bootstrap ナビゲーションバーの記入 -->
+
+
+         <header>
+　　　　　　　　<div class="center-logo">
+	           	<%= image_tag 'tubeeerlogo2.png', class: 'header-logo' %>
+	          		　　<nav class="navbar navbar-expand-md mb-4 search-box">
+					      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+					        <span class="navbar-toggler-icon"></span>
+					      </button>
+					        <form class="form-inline mt-2 mt-md-0 header-search">
+					          <input class="form-control mr-sm-2" type="text" placeholder="Search" aria-label="Search">
+					          <button class="btn my-2 my-3 my-sm-0" type="submit">Search</button>
+					        </form>
+					    </nav>
+	          </div>
+	     </header>
+		 
+		 <br>			
+		 <br>			
+		
+		   <div class="btn-box">
+		   	<!-- aタグだとlink_to使えない -->
+	        <%= link_to "チューバーメディア", blogs_path, class: "btn btn-color my-2" %>
+	        <%= link_to "チューバーランキング", rankings_path,class: "btn  btn-color my-2" %>
+           </div>
+    <!-- 全ページにbootstrapのグリッドシステム適用 -->
+　　 <div class="container">
+    <%= yield %>
+    </div>
+
+  </body>
+
+
+  <footer class="text-muted">
+      <div class="container">
+        <p class="float-right">
+          <a href="#">Back to top</a>
+        </p>
+        <%= link_to "利用規約および運営会社", terms_path, class: "terms" %>
+        <%= link_to "お問い合わせ", contact_path, class: "contact" %>
+      </div>
+</footer>
+</html>

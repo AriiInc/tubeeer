@@ -1,0 +1,229 @@
+From d6988043f702bd56a4043cc9daa481fe29fb00d1 Mon Sep 17 00:00:00 2001
+From: cristy <cristy@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Mon, 30 Jul 2012 12:28:56 +0000
+Subject: [PATCH] Fix security bug #685903: libmagick++5 Fails an assertion due
+ to OpenMP related problem (2/3)
+
+On some PNG images, ImageMagick fails with an assertion in the read method.
+This happens because ImageMagick does not determine the maximum number of
+threads in a uniform way. This broke a django web application,
+so this problem could be used to conduct a DoS attack in some environments.
+
+In order to solve this problem we must apply three patches.
+
+git-svn-id: https://www.imagemagick.org/subversion/ImageMagick/branches/ImageMagick-6@8764 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+
+Origin: upstream, http://trac.imagemagick.org/changeset/8764
+Bug: http://www.imagemagick.org/discourse-server/viewtopic.php?f=3&t=21543
+Bug-Debian: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685903
+Applied-Upstream: 6.7.8-7
+---
+ magick/attribute.c  | 2 +-
+ magick/cache-view.c | 2 +-
+ magick/cache.c      | 2 +-
+ magick/draw.c       | 2 +-
+ magick/fx.c         | 2 +-
+ magick/image-view.c | 6 +++---
+ magick/paint.c      | 2 +-
+ magick/profile.c    | 4 ++--
+ magick/quantize.c   | 2 +-
+ magick/quantum.c    | 2 +-
+ magick/resize.c     | 2 +-
+ magick/statistic.c  | 4 ++--
+ 12 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/magick/attribute.c b/magick/attribute.c
+index 26eeead..43ac8b6 100644
+--- a/magick/attribute.c
++++ b/magick/attribute.c
+@@ -310,7 +310,7 @@ MagickExport size_t GetImageChannelDepth(const Image *image,
+   assert(image->signature == MagickSignature);
+   if (image->debug != MagickFalse)
+     (void) LogMagickEvent(TraceEvent,GetMagickModule(),"%s",image->filename);
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   current_depth=(size_t *) AcquireQuantumMemory(number_threads,
+     sizeof(*current_depth));
+   if (current_depth == (size_t *) NULL)
+diff --git a/magick/cache-view.c b/magick/cache-view.c
+index f5136f2..839d3fa 100644
+--- a/magick/cache-view.c
++++ b/magick/cache-view.c
+@@ -170,7 +170,7 @@ MagickExport CacheView *AcquireVirtualCacheView(const Image *image,
+     ThrowFatalException(ResourceLimitFatalError,"MemoryAllocationFailed");
+   (void) ResetMagickMemory(cache_view,0,sizeof(*cache_view));
+   cache_view->image=ReferenceImage((Image *) image);
+-  cache_view->number_threads=GetMagickResourceLimit(ThreadResource);
++  cache_view->number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   cache_view->nexus_info=AcquirePixelCacheNexus(cache_view->number_threads);
+   cache_view->virtual_pixel_method=GetImageVirtualPixelMethod(image);
+   cache_view->debug=IsEventLogging();
+diff --git a/magick/cache.c b/magick/cache.c
+index d04b518..6117fed 100644
+--- a/magick/cache.c
++++ b/magick/cache.c
+@@ -204,7 +204,7 @@ MagickExport Cache AcquirePixelCache(const size_t number_threads)
+   cache_info->id=GetMagickThreadId();
+   cache_info->number_threads=number_threads;
+   if (number_threads == 0)
+-    cache_info->number_threads=GetMagickResourceLimit(ThreadResource);
++    cache_info->number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   cache_info->nexus_info=AcquirePixelCacheNexus(cache_info->number_threads);
+   if (cache_info->nexus_info == (NexusInfo **) NULL)
+     ThrowFatalException(ResourceLimitFatalError,"MemoryAllocationFailed");
+diff --git a/magick/draw.c b/magick/draw.c
+index cabff67..6c92824 100644
+--- a/magick/draw.c
++++ b/magick/draw.c
+@@ -3624,7 +3624,7 @@ static PolygonInfo **AcquirePolygonThreadSet(const DrawInfo *draw_info,
+   size_t
+     number_threads;
+ 
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   polygon_info=(PolygonInfo **) AcquireQuantumMemory(number_threads,
+     sizeof(*polygon_info));
+   if (polygon_info == (PolygonInfo **) NULL)
+diff --git a/magick/fx.c b/magick/fx.c
+index cfbccbd..dc84242 100644
+--- a/magick/fx.c
++++ b/magick/fx.c
+@@ -2978,7 +2978,7 @@ static FxInfo **AcquireFxThreadSet(const Image *image,const char *expression,
+   size_t
+     number_threads;
+ 
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   fx_info=(FxInfo **) AcquireQuantumMemory(number_threads,sizeof(*fx_info));
+   if (fx_info == (FxInfo **) NULL)
+     return((FxInfo **) NULL);
+diff --git a/magick/image-view.c b/magick/image-view.c
+index a451a54..7d960d8 100644
+--- a/magick/image-view.c
++++ b/magick/image-view.c
+@@ -737,7 +737,7 @@ MagickExport ImageView *NewImageView(Image *image)
+   image_view->extent.height=image->rows;
+   image_view->extent.x=0;
+   image_view->extent.y=0;
+-  image_view->number_threads=GetMagickResourceLimit(ThreadResource);
++  image_view->number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   image_view->debug=IsEventLogging();
+   image_view->signature=MagickSignature;
+   return(image_view);
+@@ -791,7 +791,7 @@ MagickExport ImageView *NewImageViewRegion(Image *image,const ssize_t x,
+   image_view->extent.height=height;
+   image_view->extent.x=x;
+   image_view->extent.y=y;
+-  image_view->number_threads=GetMagickResourceLimit(ThreadResource);
++  image_view->number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   image_view->debug=IsEventLogging();
+   image_view->signature=MagickSignature;
+   return(image_view);
+@@ -992,7 +992,7 @@ MagickExport void SetImageViewThreads(ImageView *image_view,
+   assert(image_view->signature == MagickSignature);
+   image_view->number_threads=number_threads;
+   if (number_threads > (size_t) GetMagickResourceLimit(ThreadResource))
+-    image_view->number_threads=GetMagickResourceLimit(ThreadResource);
++    image_view->number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+ }
+ 
+ /*
+diff --git a/magick/paint.c b/magick/paint.c
+index bde285e..0ed79bd 100644
+--- a/magick/paint.c
++++ b/magick/paint.c
+@@ -538,7 +538,7 @@ static size_t **AcquireHistogramThreadSet(const size_t count)
+     **histogram,
+     number_threads;
+ 
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   histogram=(size_t **) AcquireQuantumMemory(number_threads,
+     sizeof(*histogram));
+   if (histogram == (size_t **) NULL)
+diff --git a/magick/profile.c b/magick/profile.c
+index 7fd17de..738d22f 100644
+--- a/magick/profile.c
++++ b/magick/profile.c
+@@ -367,7 +367,7 @@ static unsigned short **AcquirePixelThreadSet(const size_t columns,
+   size_t
+     number_threads;
+ 
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   pixels=(unsigned short **) AcquireQuantumMemory(number_threads,
+     sizeof(*pixels));
+   if (pixels == (unsigned short **) NULL)
+@@ -410,7 +410,7 @@ static cmsHTRANSFORM *AcquireTransformThreadSet(Image *image,
+   size_t
+     number_threads;
+ 
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   transform=(cmsHTRANSFORM *) AcquireQuantumMemory(number_threads,
+     sizeof(*transform));
+   if (transform == (cmsHTRANSFORM *) NULL)
+diff --git a/magick/quantize.c b/magick/quantize.c
+index c3bd516..c0f00f1 100644
+--- a/magick/quantize.c
++++ b/magick/quantize.c
+@@ -1401,7 +1401,7 @@ static RealPixelPacket **AcquirePixelThreadSet(const size_t count)
+   size_t
+     number_threads;
+ 
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   pixels=(RealPixelPacket **) AcquireQuantumMemory(number_threads,
+     sizeof(*pixels));
+   if (pixels == (RealPixelPacket **) NULL)
+diff --git a/magick/quantum.c b/magick/quantum.c
+index 8e98634..156907b 100644
+--- a/magick/quantum.c
++++ b/magick/quantum.c
+@@ -167,7 +167,7 @@ static MagickBooleanType AcquireQuantumPixels(QuantumInfo *quantum_info,
+ 
+   assert(quantum_info != (QuantumInfo *) NULL);
+   assert(quantum_info->signature == MagickSignature);
+-  quantum_info->number_threads=GetMagickResourceLimit(ThreadResource);
++  quantum_info->number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   quantum_info->pixels=(unsigned char **) AcquireQuantumMemory(
+     quantum_info->number_threads,sizeof(*quantum_info->pixels));
+   if (quantum_info->pixels == (unsigned char **) NULL)
+diff --git a/magick/resize.c b/magick/resize.c
+index 756ae78..6b964d6 100644
+--- a/magick/resize.c
++++ b/magick/resize.c
+@@ -2115,7 +2115,7 @@ static ContributionInfo **AcquireContributionThreadSet(const size_t count)
+   size_t
+     number_threads;
+ 
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   contribution=(ContributionInfo **) AcquireQuantumMemory(number_threads,
+     sizeof(*contribution));
+   if (contribution == (ContributionInfo **) NULL)
+diff --git a/magick/statistic.c b/magick/statistic.c
+index d6c1f3c..dde29fc 100644
+--- a/magick/statistic.c
++++ b/magick/statistic.c
+@@ -160,7 +160,7 @@ static MagickPixelPacket **AcquirePixelThreadSet(const Image *image,
+     length,
+     number_threads;
+ 
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   pixels=(MagickPixelPacket **) AcquireQuantumMemory(number_threads,
+     sizeof(*pixels));
+   if (pixels == (MagickPixelPacket **) NULL)
+@@ -2016,7 +2016,7 @@ static PixelList **AcquirePixelListThreadSet(const size_t width,
+   size_t
+     number_threads;
+ 
+-  number_threads=GetMagickResourceLimit(ThreadResource);
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   pixel_list=(PixelList **) AcquireQuantumMemory(number_threads,
+     sizeof(*pixel_list));
+   if (pixel_list == (PixelList **) NULL)
+-- 
+1.8.3.2
+

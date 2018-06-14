@@ -1,0 +1,29 @@
+From 426e56c65935995029a77538ea71ff3a68407a10 Mon Sep 17 00:00:00 2001
+From: dirk <dirk@git.imagemagick.org>
+Date: Sun, 29 May 2016 08:15:48 +0200
+Subject: [PATCH] Added check for invalid number of frames in mat file
+
+Fix crash for corrupted files
+(cherry picked from commit 8a370f9ab120faf182aa160900ba692ba8e2bcf0)
+
+Origin: upstream, https://github.com/ImageMagick/ImageMagick/commit/8a370f9ab120faf182aa160900ba692ba8e2bcf0
+bug-debian: https;//bugs.debian.org/845244
+---
+ coders/mat.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+Index: imagemagick-6.7.7.10/coders/mat.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/mat.c	2016-11-29 09:43:04.370449865 -0500
++++ imagemagick-6.7.7.10/coders/mat.c	2016-11-29 09:43:04.366449812 -0500
+@@ -736,7 +736,9 @@
+       case 16: z2=z = ReadBlobXXXLong(image2);  /* 4D matrix animation */
+          if(z!=3 && z!=1)
+            ThrowReaderException(CoderError, "MultidimensionalMatricesAreNotSupported");
+-          Frames = ReadBlobXXXLong(image2);
++         Frames = ReadBlobXXXLong(image2);
++         if (Frames == 0)
++           ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+          break;
+       default: ThrowReaderException(CoderError, "MultidimensionalMatricesAreNotSupported");
+     }  

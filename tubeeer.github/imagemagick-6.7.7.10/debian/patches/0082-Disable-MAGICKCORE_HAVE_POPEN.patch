@@ -1,0 +1,20 @@
+Description: Disable the MAGICKCORE_HAVE_POPEN
+  This removes support for the pipe (|) prefix for
+  reading/writing from/to a shell command.
+Origin: http://www.openwall.com/lists/oss-security/2016/05/29/7
+Bug-CVE: CVE-2016-5118
+Bug-Debian: https://bugs.debian.org/825799
+Last-Update: 2016-05-31
+---
+--- a/magick/blob.c
++++ b/magick/blob.c
+@@ -86,6 +86,9 @@
+ #define _O_BINARY O_BINARY
+ #endif
+ 
++
++#undef MAGICKCORE_HAVE_POPEN // CVE-2016-5118
++
+ /*
+   Typedef declarations.
+ */

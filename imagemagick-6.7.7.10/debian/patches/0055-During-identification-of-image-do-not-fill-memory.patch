@@ -1,0 +1,29 @@
+Backport of:
+
+From 5ee6f49297c8137cae527429e0267462c14ec3ed Mon Sep 17 00:00:00 2001
+From: cristy <cristy@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Tue, 23 Dec 2014 01:25:22 +0000
+Subject: [PATCH] During identification of image do not fill memory
+
+This create a security risk (DOS) by filling all memory during identification of image.
+
+git-svn-id: https://subversion.imagemagick.org/subversion/ImageMagick/branches/ImageMagick-6@17413 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+origin: http://trac.imagemagick.org/changeset/17413
+---
+ coders/tiff.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+Index: imagemagick-6.7.7.10/coders/tiff.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/tiff.c	2016-11-11 12:41:13.053702431 -0500
++++ imagemagick-6.7.7.10/coders/tiff.c	2016-11-11 12:42:26.818462668 -0500
+@@ -1098,7 +1098,8 @@
+       case COMPRESSION_ADOBE_DEFLATE: image->compression=ZipCompression; break;
+       default: image->compression=RLECompression; break;
+     }
+-    TIFFGetProfiles(tiff,image);
++    if (image_info->ping == MagickFalse)
++      TIFFGetProfiles(tiff,image);
+     TIFFGetProperties(tiff,image);
+     option=GetImageOption(image_info,"tiff:exif-properties");
+     if ((option == (const char *) NULL) ||

@@ -1,0 +1,26 @@
+From abdc631b8d31f3f91121d1c6d4acdd0d9c733e24 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Sat, 24 Dec 2016 12:04:40 -0500
+Subject: [PATCH] Ipl file missing malloc check
+
+Fix CVE-2016-10144
+
+origin: https://github.com/ImageMagick/ImageMagick/commit/97566cf2806c0a5a86e884c96831a0c3b1ec6c20
+bug-debian: https://bugs.debian.org/851485
+---
+ coders/ipl.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+Index: imagemagick-6.7.7.10/coders/ipl.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/ipl.c	2017-03-02 15:01:16.685161540 -0500
++++ imagemagick-6.7.7.10/coders/ipl.c	2017-03-02 15:01:16.669161348 -0500
+@@ -543,6 +543,8 @@
+   
+ 
+   quantum_info=AcquireQuantumInfo(image_info, image);
++  if (quantum_info == (QuantumInfo *) NULL)
++    ThrowWriterException(ResourceLimitError,"MemoryAllocationFailed");
+   if ((quantum_info->format == UndefinedQuantumFormat) &&
+       (IsHighDynamicRangeImage(image,&image->exception) != MagickFalse))
+     SetQuantumFormat(image,quantum_info,FloatingPointQuantumFormat);

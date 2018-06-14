@@ -1,0 +1,30 @@
+From b3f3eb7602e6a0ebd83ca863089b2f87595c3b9f Mon Sep 17 00:00:00 2001
+From: cristy <cristy@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Wed, 26 Sep 2012 09:43:12 +0000
+Subject: [PATCH] Fix a memory leak in webp handling
+
+Under current code  in WriteWEBPImage() they are a lacking WebPPictureFree(&picture)
+thus leading to a memory leak.
+
+Bug: http://www.imagemagick.org/discourse-server/viewtopic.php?f=3&t=21943
+Origin: Upstream, http://trac.imagemagick.org/changeset/9433
+git-svn-id: https://www.imagemagick.org/subversion/ImageMagick/trunk@9433 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+---
+ coders/webp.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/coders/webp.c b/coders/webp.c
+index 44ea3f7..580c68f 100644
+--- a/coders/webp.c
++++ b/coders/webp.c
+@@ -391,6 +391,7 @@ static MagickBooleanType WriteWEBPImage(const ImageInfo *image_info,
+     webp_status=WebPPictureImportRGBA(&picture,pixels,4*picture.width);
+   pixels=(unsigned char *) RelinquishMagickMemory(pixels);
+   webp_status=WebPEncode(&configure,&picture);
++  WebPPictureFree(&picture);
+   (void) CloseBlob(image);
+   return(webp_status == 0 ? MagickFalse : MagickTrue);
+ }
+-- 
+1.8.3.2
+

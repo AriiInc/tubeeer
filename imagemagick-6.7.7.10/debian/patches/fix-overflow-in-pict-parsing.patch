@@ -1,0 +1,45 @@
+Description: Fix overflow in pict image parsing
+ Backport a small part of an upstream commit fixing
+ an issue with pict image parsing.
+Origin: backport, https://github.com/ImageMagick/ImageMagick/commit/0f6fc2d5bf8f500820c3dbcf0d23ee14f2d9f734
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1448803
+Applied-Upstream: 7.0.0
+Last-Update: 2015-11-27
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/coders/pict.c
++++ b/coders/pict.c
+@@ -1573,6 +1573,7 @@
+ 
+   size_t
+     bytes_per_line,
++    row_bytes,
+     count,
+     storage_class;
+ 
+@@ -1587,7 +1588,6 @@
+ 
+   unsigned short
+     base_address,
+-    row_bytes,
+     transfer_mode;
+ 
+   /*
+@@ -1618,7 +1618,7 @@
+   source_rectangle=size_rectangle;
+   destination_rectangle=size_rectangle;
+   base_address=0xff;
+-  row_bytes=(unsigned short) (image->columns | 0x8000);
++  row_bytes=image->columns;
+   bounds.top=0;
+   bounds.left=0;
+   bounds.bottom=(short) image->rows;
+@@ -1648,7 +1648,7 @@
+       pixmap.bits_per_pixel=32;
+       pixmap.pack_type=0x04;
+       transfer_mode=0x40;
+-      row_bytes=(unsigned short) ((4*image->columns) | 0x8000);
++      row_bytes=4*image->columns;
+     }
+   /*
+     Allocate memory.

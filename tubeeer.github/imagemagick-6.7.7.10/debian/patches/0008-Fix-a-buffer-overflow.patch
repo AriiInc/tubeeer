@@ -1,0 +1,50 @@
+From 5c38a58d96b6888f1250b50934e3e513e2550f16 Mon Sep 17 00:00:00 2001
+From: cristy <cristy@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Tue, 31 Jul 2012 12:50:24 +0000
+Subject: [PATCH] Fix a buffer overflow
+
+The gif handling code of imagemagick allow execution of arbitrary code
+due to a buffer overflow of one byte.
+Gif image format is made of different kind of data unit called block
+and these block may appear at anytime.
+The code actually do the equivalent of a=malloc(length+count)
+and  a[length+count]='\0' for each comment block.
+Because this code is executed for every comment block and that an
+attacker could put arbitrary block between each comment block, and
+finaly this attacker could smash memory particularly on architecture
+where malloc layout is predictable.
+Worst the bug could be exploited remotly throught php-magick or perlmagick.
+A special image leading to malloc space corruption and thus a dos is available.
+
+author: john cristy
+bug: http://www.imagemagick.org/discourse-server/viewtopic.php?f=3&t=23921
+bug-ubuntu: https://bugs.launchpad.net/bugs/1218248
+bug-debian: http://bugs.debian.org/721273
+git-svn-id: https://www.imagemagick.org/subversion/ImageMagick/trunk@8770 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+---
+ coders/gif.c | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/coders/gif.c b/coders/gif.c
+index b3b3ba6..3029e0e 100644
+--- a/coders/gif.c
++++ b/coders/gif.c
+@@ -1100,14 +1100,8 @@ static Image *ReadGIFImage(const ImageInfo *image_info,ExceptionInfo *exception)
+               if (count == 0)
+                 break;
+               header[count]='\0';
+-              comments=(char *) ResizeQuantumMemory(comments,length+count,
+-                sizeof(*comments));
+-              if (comments == (char *) NULL)
+-                ThrowReaderException(ResourceLimitError,
+-                  "MemoryAllocationFailed");
+-              (void) CopyMagickMemory(comments+length,header,(size_t) count);
++              (void) ConcatenateString(&comments,(const char *) header);
+             }
+-            comments[length+count]='\0';
+             (void) SetImageProperty(image,"comment",comments);
+             comments=DestroyString(comments);
+             break;
+-- 
+1.8.3.2
+

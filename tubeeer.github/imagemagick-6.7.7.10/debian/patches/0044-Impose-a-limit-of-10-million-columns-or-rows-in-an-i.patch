@@ -1,0 +1,27 @@
+From ec550654499ce8035d70ac466a6f78965ca2642e Mon Sep 17 00:00:00 2001
+From: glennrp <glennrp@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Sun, 21 Dec 2014 17:18:01 +0000
+Subject: [PATCH] Impose a limit of 10 million columns or rows in an input PNG.
+
+git-svn-id: https://subversion.imagemagick.org/subversion/ImageMagick/branches/ImageMagick-6@17368 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+origin:  http://trac.imagemagick.org/changeset/17368
+---
+ coders/png.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+Index: imagemagick-6.7.7.10/coders/png.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/png.c	2016-11-11 12:00:34.868838189 -0500
++++ imagemagick-6.7.7.10/coders/png.c	2016-11-11 12:00:34.864838147 -0500
+@@ -2161,6 +2161,11 @@
+   LockSemaphoreInfo(ping_semaphore);
+ #endif
+ 
++#ifdef PNG_SET_USER_LIMITS_SUPPORTED
++  /* Reject images with more than 10 million rows or columns */
++  png_set_user_limits(ping, 10000000L, 10000000L);
++#endif /* PNG_SET_USER_LIMITS_SUPPORTED */
++
+   /*
+     Prepare PNG for reading.
+   */

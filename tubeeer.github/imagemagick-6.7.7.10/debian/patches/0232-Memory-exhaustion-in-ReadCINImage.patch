@@ -1,0 +1,55 @@
+From 8cff89c2442c3d9d50ecbf65071d0712727c8586 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Fri, 23 Jun 2017 09:30:29 -0400
+Subject: [PATCH] Memory exhaustion in ReadCINImage
+
+When identify CIN file that contains User defined data, imagemagick will allocate memory to store the
+data in function ReadCINImage in coders\inc.c
+
+There is a security checking in the function SetImageExtent,
+but it after memory allocation, so IM can not control the memory usage
+
+bug: https://github.com/ImageMagick/ImageMagick/issues/519
+bug-debian: https://bugs.debian.org/867810
+origin: https://github.com/ImageMagick/ImageMagick/commit/8e576918eb28501626040d925d19a0910f3dfac4
+
+(cherry picked from commit 8e576918eb28501626040d925d19a0910f3dfac4)
+---
+ coders/cin.c | 3 +++
+ coders/rle.c | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+Index: imagemagick-6.7.7.10/coders/cin.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/cin.c	2017-07-21 10:01:25.493294769 -0400
++++ imagemagick-6.7.7.10/coders/cin.c	2017-07-21 10:01:25.489294768 -0400
+@@ -677,6 +677,8 @@ static Image *ReadCINImage(const ImageIn
+       /*
+         User defined data.
+       */
++      if (cin.file.user_length > GetBlobSize(image))
++        ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+       profile=BlobToStringInfo((const void *) NULL,cin.file.user_length);
+       if (profile == (StringInfo *) NULL)
+         ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
+@@ -780,6 +782,7 @@ ModuleExport size_t RegisterCINImage(voi
+   entry->encoder=(EncodeImageHandler *) WriteCINImage;
+   entry->magick=(IsImageFormatHandler *) IsCIN;
+   entry->adjoin=MagickFalse;
++  entry->seekable_stream=MagickTrue;
+   entry->description=ConstantString("Cineon Image File");
+   entry->module=ConstantString("CIN");
+   (void) RegisterMagickInfo(entry);
+Index: imagemagick-6.7.7.10/coders/rle.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/rle.c	2017-07-21 10:01:25.493294769 -0400
++++ imagemagick-6.7.7.10/coders/rle.c	2017-07-21 10:01:25.489294768 -0400
+@@ -748,7 +748,7 @@ ModuleExport size_t RegisterRLEImage(voi
+   entry=SetMagickInfo("RLE");
+   entry->decoder=(DecodeImageHandler *) ReadRLEImage;
+   entry->magick=(IsImageFormatHandler *) IsRLE;
+-  entry->blob_support=MagickFalse;
++  entry->seekable_stream=MagickTrue;
+   entry->adjoin=MagickFalse;
+   entry->description=ConstantString("Utah Run length encoded image");
+   entry->module=ConstantString("RLE");

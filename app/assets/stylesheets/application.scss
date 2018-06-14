@@ -1,0 +1,193 @@
+/*
+ * This is a manifest file that'll be compiled into application.css, which will include all the files
+ * listed below.
+ *
+ * Any CSS and SCSS file within this directory, lib/assets/stylesheets, or any plugin's
+ * vendor/assets/stylesheets directory can be referenced here using a relative path.
+ *
+ * You're free to add application-wide styles to this file and they'll appear at the bottom of the
+ * compiled file so the styles you add here take precedence over styles defined in any other CSS/SCSS
+ * files in this directory. Styles in this file should be added after the last require_* statement.
+ * It is generally better to create a new file per style scope.
+ *
+ *= require_tree .
+ *= require font-awesome
+ *= require_self
+ */
+ @import "bootstrap";
+
+
+*{
+	word-wrap: break-word;
+}
+
+/*ーーヘッダーーー*/
+header{
+	background-color:#cd201f;
+    border:3px solid#777777;
+    height: 80px;
+}
+/*箱全体*/
+.btn-box{
+    
+}
+/*文字色だけ*/
+.btn-box a{
+	font-family:sans-serif;
+	color:#FFFFFF;
+
+}
+
+.btn-color{
+    background-color:#cd201f;
+    border:3px solid#777777;
+}
+/*一度押したところの色を変える*/
+/*.btn-color:visited{
+    background-color: #cd201f;
+	
+}*/
+
+.btn-color:hover{
+    background-color: #FFD5EC;
+
+}
+
+main{
+	width: 100%;
+	background-color: lightgray;
+}
+
+.search-box{
+	width: 330px;
+	position: absolute;
+	top:10px;
+	right: 20px;
+}
+
+
+.header-logo{
+	width: 100px;
+	height: 30px;
+	float: center;
+	/*margin: 0 auto;*/
+}
+.center-logo{
+	 margin: 0 auto;
+}
+
+.btn-box{
+	text-align: center;
+	width: 100%;
+
+}
+.a.btn btn-primary my-2{
+	background-color:#cd201f;
+}
+
+.my-3{
+	background-color:#777777;
+	border-color:#777777;
+}
+
+.my-3:hover{
+	background-color:#444444;
+	border-color:#444444;
+}
+
+/*ーーヘッダーーー*/
+/*blogs/index*/
+.align-items-start:hover{
+	background-color: #FFFFFF;
+}
+.align-items-start {
+	font:#111111;
+}
+.center-logo{
+	width:  200px;
+	height:  70px;
+	margin:0 auto;
+}
+.header-logo{
+	width:  200px;
+	height:  70px;
+}
+
+.header-search{
+}
+
+.top-sidebar {
+	height: 336px;
+	width: 280px;
+}
+.top-a {
+	height: 336px;
+	width: 280px;
+}
+
+.top-b {
+	height: 336px;
+	width: 280px;
+}
+
+.top-c {
+	height: 336px;
+	width: 280px;
+}
+
+.middle-a{
+	height:100px;
+	font-size: 1px;
+}
+.middle-a a {
+	font-size: 1px;
+}
+.mb-0{
+    font-size: 15px;
+}
+
+.top-c{
+	height: 100px;
+	width: 280px;
+}
+.pagination-a{
+	margin: 0 auto;
+}
+
+/*blogs/index*/
+/*blogs/show*/
+
+.blog-show{
+    font-family:sans-serif;
+}
+
+
+/*blogs/show*/
+
+/*ranking/index*/
+.container{
+    font-family:sans-serif;
+}
+/*ranking/index*/
+
+/*ranking/show*/
+.container{
+    font-family:sans-serif;
+}
+/*ranking/show*/
+
+
+.mx-auto{
+	width: 200px;
+	margin: 0 auto;
+}
+
+
+
+
+
+
+
+
+
+

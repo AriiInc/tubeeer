@@ -1,0 +1,23 @@
+From fb898d9633396f8e39a97e318ae5cf63de422477 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Mon, 31 Aug 2015 16:19:40 -0400
+Subject: [PATCH] Fix a double free in tga file
+
+Bug-ubuntu: https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1490362
+---
+ coders/tga.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+Index: imagemagick-6.7.7.10/coders/tga.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/tga.c	2016-11-11 12:50:22.199370906 -0500
++++ imagemagick-6.7.7.10/coders/tga.c	2016-11-11 12:50:22.199370906 -0500
+@@ -295,6 +295,8 @@
+       /*
+         Read TGA raster colormap.
+       */
++      if (image->colors < tga_info.colormap_index)
++        image->colors=tga_info.colormap_index;
+       if (AcquireImageColormap(image,image->colors) == MagickFalse)
+         ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
+       for (i=0; i < (ssize_t) image->colors; i++)

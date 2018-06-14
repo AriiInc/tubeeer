@@ -1,0 +1,65 @@
+Backport of:
+
+From 6330ab1048b62ab34e957447d81e35e1dde60d2e Mon Sep 17 00:00:00 2001
+From: cristy <cristy@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Sun, 14 Dec 2014 17:06:28 +0000
+Subject: [PATCH] Avoid a crash in png coder
+
+Move some code earlier in order to avoid non initialised pointer.
+
+git-svn-id: https://subversion.imagemagick.org/subversion/ImageMagick/branches/ImageMagick-6@17209 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+origin:  http://trac.imagemagick.org/changeset/17209
+---
+ coders/png.c | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/png.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/png.c	2016-11-11 13:51:14.246214236 -0500
++++ imagemagick-6.7.7.10/coders/png.c	2016-11-11 13:51:49.154585603 -0500
+@@ -2875,6 +2875,14 @@
+ 
+   if (image->storage_class == DirectClass)
+     {
++      QuantumInfo
++        *quantum_info;
++
++      quantum_info=AcquireQuantumInfo(image_info,image);
++
++      if (quantum_info == (QuantumInfo *) NULL)
++        png_error(ping,"Failed to allocate quantum_info");
++
+       for (pass=0; pass < num_passes; pass++)
+       {
+         /*
+@@ -2908,14 +2916,6 @@
+ 
+           else
+           {
+-            QuantumInfo
+-              *quantum_info;
+-
+-            quantum_info=AcquireQuantumInfo(image_info,image);
+-
+-            if (quantum_info == (QuantumInfo *) NULL)
+-              png_error(ping,"Failed to allocate quantum_info");
+-
+             if ((int) ping_color_type == PNG_COLOR_TYPE_GRAY)
+               (void) ImportQuantumPixels(image,(CacheView *) NULL,quantum_info,
+                 GrayQuantum,ping_pixels+row_offset,exception);
+@@ -2936,7 +2936,6 @@
+               (void) ImportQuantumPixels(image,(CacheView *) NULL,quantum_info,
+                 RGBQuantum,ping_pixels+row_offset,exception);
+ 
+-            quantum_info=DestroyQuantumInfo(quantum_info);
+           }
+ 
+           if (found_transparent_pixel == MagickFalse)
+@@ -2997,6 +2996,7 @@
+               break;
+           }
+       }
++      quantum_info=DestroyQuantumInfo(quantum_info);
+     }
+ 
+   else /* image->storage_class != DirectClass */

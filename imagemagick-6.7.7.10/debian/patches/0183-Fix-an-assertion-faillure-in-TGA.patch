@@ -1,0 +1,50 @@
+Backport of:
+
+From e75ebf3c9b30444948a90ad59e8cd83ea1f28e38 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Thu, 19 Jan 2017 19:30:48 -0500
+Subject: [PATCH] Fix an assertion faillure in TGA
+
+bug: https://github.com/ImageMagick/ImageMagick/pull/359
+bug-debian: https://bugs.debian.org/856878
+origin: https://github.com/ImageMagick/ImageMagick/commit/65f75a32a93ae4044c528a987a68366ecd4b46b9
+
+(cherry picked from commit 65f75a32a93ae4044c528a987a68366ecd4b46b9)
+---
+ coders/tga.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/tga.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/tga.c	2017-03-14 09:06:30.310959880 -0400
++++ imagemagick-6.7.7.10/coders/tga.c	2017-03-14 09:08:39.692436975 -0400
+@@ -661,6 +661,7 @@
+   } TargaInfo;
+ 
+   const char
++    *comment,
+     *value;
+ 
+   MagickBooleanType
+@@ -711,9 +712,9 @@
+   if (IssRGBCompatibleColorspace(image->colorspace) == MagickFalse)
+     (void) TransformImageColorspace(image,sRGBColorspace);
+   targa_info.id_length=0;
+-  value=GetImageProperty(image,"comment");
+-  if (value != (const char *) NULL)
+-    targa_info.id_length=(unsigned char) MagickMin(strlen(value),255);
++  comment=GetImageProperty(image,"comment");
++  if (comment != (const char *) NULL)
++    targa_info.id_length=(unsigned char) MagickMin(strlen(comment),255);
+   targa_info.colormap_type=0;
+   targa_info.colormap_index=0;
+   targa_info.colormap_length=0;
+@@ -771,7 +772,7 @@
+   (void) WriteBlobByte(image,targa_info.attributes);
+   if (targa_info.id_length != 0)
+     (void) WriteBlob(image,targa_info.id_length,(unsigned char *)
+-      value);
++      comment);
+   if (targa_info.image_type == TargaColormap)
+     {
+       unsigned char

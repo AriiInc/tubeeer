@@ -1,0 +1,71 @@
+From a2b9a71d892bfc6b621eb40c22ca1fdaf3f448f9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bastien=20ROUCARI=C3=88S?= <roucaries.bastien@gmail.com>
+Date: Mon, 27 Aug 2012 11:46:27 +0200
+Subject: [PATCH] Fix security bug #685903: libmagick++5 Fails an assertion due
+ to OpenMP related problem (3/3)
+
+On some PNG images, ImageMagick fails with an assertion in the read method.
+This happens because ImageMagick does not determine the maximum number of
+threads in a uniform way. This broke a django web application,
+so this problem could be used to conduct a DoS attack in some environments.
+
+In order to solve this problem we must apply three patches.
+
+git-svn-id https://www.imagemagick.org/subversion/ImageMagick/branches/ImageMagick-6@8766 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+
+Origin: upstream, http://trac.imagemagick.org/changeset/8766
+Bug: http://www.imagemagick.org/discourse-server/viewtopic.php?f=3&t=21543
+Bug-Debian: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685903
+Applied-Upstream: 6.7.8-7
+---
+ magick/random-private.h   | 4 ++--
+ magick/resample-private.h | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/magick/random-private.h b/magick/random-private.h
+index b2ce14e..773b78e 100644
+--- a/magick/random-private.h
++++ b/magick/random-private.h
+@@ -31,7 +31,7 @@ static inline RandomInfo **DestroyRandomInfoThreadSet(
+     i;
+ 
+   assert(random_info != (RandomInfo **) NULL);
+-  for (i=0; i < (ssize_t) GetOpenMPMaximumThreads(); i++)
++  for (i=0; i < (ssize_t) GetMagickResourceLimit(ThreadResource); i++)
+     if (random_info[i] != (RandomInfo *) NULL)
+       random_info[i]=DestroyRandomInfo(random_info[i]);
+   return((RandomInfo **) RelinquishAlignedMemory(random_info));
+@@ -48,7 +48,7 @@ static inline RandomInfo **AcquireRandomInfoThreadSet(void)
+   size_t
+     number_threads;
+ 
+-  number_threads=GetOpenMPMaximumThreads();
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   random_info=(RandomInfo **) AcquireAlignedMemory(number_threads,
+     sizeof(*random_info));
+   if (random_info == (RandomInfo **) NULL)
+diff --git a/magick/resample-private.h b/magick/resample-private.h
+index b1819d8..b24fd33 100644
+--- a/magick/resample-private.h
++++ b/magick/resample-private.h
+@@ -31,7 +31,7 @@ static inline ResampleFilter **DestroyResampleFilterThreadSet(
+     i;
+ 
+   assert(filter != (ResampleFilter **) NULL);
+-  for (i=0; i < (ssize_t) GetOpenMPMaximumThreads(); i++)
++  for (i=0; i < (ssize_t) GetMagickResourceLimit(ThreadResource); i++)
+     if (filter[i] != (ResampleFilter *) NULL)
+       filter[i]=DestroyResampleFilter(filter[i]);
+   filter=(ResampleFilter **) RelinquishAlignedMemory(filter);
+@@ -51,7 +51,7 @@ static inline ResampleFilter **AcquireResampleFilterThreadSet(
+   size_t
+     number_threads;
+ 
+-  number_threads=GetOpenMPMaximumThreads();
++  number_threads=(size_t) GetMagickResourceLimit(ThreadResource);
+   filter=(ResampleFilter **) AcquireAlignedMemory(number_threads,
+     sizeof(*filter));
+   if (filter == (ResampleFilter **) NULL)
+-- 
+1.8.3.2
+

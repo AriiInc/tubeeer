@@ -1,0 +1,792 @@
+Backport of:
+
+From f8f5654938b2f90c6a3955ff79cc495e5ff44047 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Sat, 15 Aug 2015 12:44:09 -0400
+Subject: [PATCH] Limit -fx recursive to avoid stack overflow
+
+Applied-upstream: 6.9.2.1
+---
+ magick/color.c |   4 -
+ magick/fx.c    | 309 +++++++++++++++++++++++++++++++++------------------------
+ 2 files changed, 178 insertions(+), 135 deletions(-)
+
+Index: imagemagick-6.7.7.10/magick/color.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/color.c	2016-11-11 12:51:07.555839932 -0500
++++ imagemagick-6.7.7.10/magick/color.c	2016-11-11 13:01:52.078516189 -0500
+@@ -2728,10 +2728,6 @@
+           PixelPacket
+             pixel;
+ 
+-          scale=1.0/360.0;
+-          if ((flags & PercentValue) != 0)
+-            scale=1.0/100.0;
+-          geometry_info.rho*=360.0*scale;
+           scale=1.0/255.0;
+           if ((flags & PercentValue) != 0)
+             scale=1.0/100.0;
+Index: imagemagick-6.7.7.10/magick/fx.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/fx.c	2016-11-11 12:51:07.555839932 -0500
++++ imagemagick-6.7.7.10/magick/fx.c	2016-11-11 13:01:28.438270977 -0500
+@@ -1232,7 +1232,7 @@
+ 
+ static MagickRealType
+   FxEvaluateSubexpression(FxInfo *,const ChannelType,const ssize_t,
+-    const ssize_t,const char *,MagickRealType *,ExceptionInfo *);
++    const ssize_t,const char *,size_t *,MagickRealType *,ExceptionInfo *);
+ 
+ static MagickOffsetType FxGCD(MagickOffsetType alpha,MagickOffsetType beta)
+ {
+@@ -1301,10 +1301,12 @@
+     length;
+ 
+   size_t
++    depth,
+     level;
+ 
+   p=expression;
+   i=GetImageIndexInList(fx_info->images);
++  depth=0;
+   level=0;
+   point.x=(double) x;
+   point.y=(double) y;
+@@ -1343,7 +1345,7 @@
+               }
+               *q='\0';
+               alpha=FxEvaluateSubexpression(fx_info,channel,x,y,subexpression,
+-                &beta,exception);
++                &depth,&beta,exception);
+               i=(ssize_t) (alpha+0.5);
+               p++;
+             }
+@@ -1372,7 +1374,7 @@
+               }
+               *q='\0';
+               alpha=FxEvaluateSubexpression(fx_info,channel,x,y,subexpression,
+-                &beta,exception);
++                &depth,&beta,exception);
+               point.x=alpha;
+               point.y=beta;
+               p++;
+@@ -1397,7 +1399,7 @@
+                 }
+                 *q='\0';
+                 alpha=FxEvaluateSubexpression(fx_info,channel,x,y,subexpression,
+-                  &beta,exception);
++                  &depth,&beta,exception);
+                 point.x+=alpha;
+                 point.y+=beta;
+                 p++;
+@@ -2086,8 +2088,10 @@
+ 
+ static MagickRealType FxEvaluateSubexpression(FxInfo *fx_info,
+   const ChannelType channel,const ssize_t x,const ssize_t y,
+-  const char *expression,MagickRealType *beta,ExceptionInfo *exception)
++  const char *expression,size_t *depth,MagickRealType *beta,ExceptionInfo *exception)
+ {
++#define FxMaxParenthesisDepth  58
++
+   char
+     *q,
+     subexpression[MaxTextExtent];
+@@ -2116,36 +2120,36 @@
+     {
+       (void) CopyMagickString(subexpression,expression,(size_t)
+         (p-expression+1));
+-      alpha=FxEvaluateSubexpression(fx_info,channel,x,y,subexpression,beta,
++      alpha=FxEvaluateSubexpression(fx_info,channel,x,y,subexpression,depth,beta,
+         exception);
+       switch ((unsigned char) *p)
+       {
+         case '~':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           *beta=(MagickRealType) (~(size_t) *beta);
+           return(*beta);
+         }
+         case '!':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(*beta == 0.0 ? 1.0 : 0.0);
+         }
+         case '^':
+         {
+           *beta=pow((double) alpha,(double) FxEvaluateSubexpression(fx_info,
+-            channel,x,y,++p,beta,exception));
++            channel,x,y,++p,depth,beta,exception));
+           return(*beta);
+         }
+         case '*':
+         case ExponentialNotation:
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(alpha*(*beta));
+         }
+         case '/':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           if (*beta == 0.0)
+             {
+               if (exception->severity == UndefinedException)
+@@ -2157,7 +2161,8 @@
+         }
+         case '%':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,
++            exception);
+           *beta=fabs(floor(((double) *beta)+0.5));
+           if (*beta == 0.0)
+             {
+@@ -2169,82 +2174,96 @@
+         }
+         case '+':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(alpha+(*beta));
+         }
+         case '-':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(alpha-(*beta));
+         }
+         case LeftShiftOperator:
+         {
+-          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           *beta=(MagickRealType) ((size_t) (alpha+0.5) << (size_t)
+             (gamma+0.5));
+           return(*beta);
+         }
+         case RightShiftOperator:
+         {
+-          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           *beta=(MagickRealType) ((size_t) (alpha+0.5) >> (size_t)
+             (gamma+0.5));
+           return(*beta);
+         }
+         case '<':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(alpha < *beta ? 1.0 : 0.0);
+         }
+         case LessThanEqualOperator:
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(alpha <= *beta ? 1.0 : 0.0);
+         }
+         case '>':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(alpha > *beta ? 1.0 : 0.0);
+         }
+         case GreaterThanEqualOperator:
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(alpha >= *beta ? 1.0 : 0.0);
+         }
+         case EqualOperator:
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(fabs(alpha-(*beta)) < MagickEpsilon ? MagickEpsilon : 0.0);
+         }
+         case NotEqualOperator:
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           return(fabs(alpha-(*beta)) >= MagickEpsilon ? 1.0 : 0.0);
+         }
+         case '&':
+         {
+-          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           *beta=(MagickRealType) ((size_t) (alpha+0.5) & (size_t)
+             (gamma+0.5));
+           return(*beta);
+         }
+         case '|':
+         {
+-          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,exception);
+           *beta=(MagickRealType) ((size_t) (alpha+0.5) | (size_t)
+             (gamma+0.5));
+           return(*beta);
+         }
+         case LogicalAndOperator:
+         {
+-          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
+-          *beta=(alpha > 0.0) && (gamma > 0.0) ? 1.0 : 0.0;
++          p++;
++          if (alpha <= 0.0)
++            { 
++              *beta=0.0;
++              return(*beta);
++            }
++          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,p,depth,beta,
++            exception);
++          *beta=(gamma > 0.0) ? 1.0 : 0.0;
+           return(*beta);
+         }
+         case LogicalOrOperator:
+         {
+-          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
+-          *beta=(alpha > 0.0) || (gamma > 0.0) ? 1.0 : 0.0;
++          p++;
++          if (alpha > 0.0) 
++            {
++             *beta=1.0;  
++             return(*beta);  
++            }
++          gamma=FxEvaluateSubexpression(fx_info,channel,x,y,p,depth,beta,
++            exception);
++          *beta=(gamma > 0.0) ? 1.0 : 0.0;
+           return(*beta);
+         }
+         case '?':
+@@ -2262,9 +2281,11 @@
+               return(0.0);
+             }
+           if (fabs((double) alpha) >= MagickEpsilon)
+-            gamma=FxEvaluateSubexpression(fx_info,channel,x,y,p,beta,exception);
++            gamma=FxEvaluateSubexpression(fx_info,channel,x,y,p,depth,beta,
++              exception);
+           else
+-            gamma=FxEvaluateSubexpression(fx_info,channel,x,y,q,beta,exception);
++            gamma=FxEvaluateSubexpression(fx_info,channel,x,y,q,depth,beta,
++              exception);
+           return(gamma);
+         }
+         case '=':
+@@ -2282,7 +2303,8 @@
+               return(0.0);
+             }
+           ClearMagickException(exception);
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,
++            exception);
+           (void) FormatLocaleString(numeric,MaxTextExtent,"%g",(double)
+             *beta);
+           (void) DeleteNodeFromSplayTree(fx_info->symbols,subexpression);
+@@ -2292,17 +2314,19 @@
+         }
+         case ',':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,
++            exception);
+           return(alpha);
+         }
+         case ';':
+         {
+-          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,beta,exception);
++          *beta=FxEvaluateSubexpression(fx_info,channel,x,y,++p,depth,beta,
++            exception);
+           return(*beta);
+         }
+         default:
+         {
+-          gamma=alpha*FxEvaluateSubexpression(fx_info,channel,x,y,p,beta,
++          gamma=alpha*FxEvaluateSubexpression(fx_info,channel,x,y,p,depth,beta,
+             exception);
+           return(gamma);
+         }
+@@ -2310,29 +2334,34 @@
+     }
+   if (strchr("(",(int) *expression) != (char *) NULL)
+     {
++      (*depth)++;
++      if (*depth >= FxMaxParenthesisDepth)
++        (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
++          "ParenthesisNestedTooDeeply","`%s'",expression);
+       (void) CopyMagickString(subexpression,expression+1,MaxTextExtent);
+       subexpression[strlen(subexpression)-1]='\0';
+-      gamma=FxEvaluateSubexpression(fx_info,channel,x,y,subexpression,beta,
+-        exception);
++      gamma=FxEvaluateSubexpression(fx_info,channel,x,y,subexpression,depth,
++        beta,exception);
++      (*depth)--;
+       return(gamma);
+     }
+   switch (*expression)
+   {
+     case '+':
+     {
+-      gamma=FxEvaluateSubexpression(fx_info,channel,x,y,expression+1,beta,
++      gamma=FxEvaluateSubexpression(fx_info,channel,x,y,expression+1,depth,beta,
+         exception);
+       return(1.0*gamma);
+     }
+     case '-':
+     {
+-      gamma=FxEvaluateSubexpression(fx_info,channel,x,y,expression+1,beta,
++      gamma=FxEvaluateSubexpression(fx_info,channel,x,y,expression+1,depth,beta,
+         exception);
+       return(-1.0*gamma);
+     }
+     case '~':
+     {
+-      gamma=FxEvaluateSubexpression(fx_info,channel,x,y,expression+1,beta,
++      gamma=FxEvaluateSubexpression(fx_info,channel,x,y,expression+1,depth,beta,
+         exception);
+       return((MagickRealType) (~(size_t) (gamma+0.5)));
+     }
+@@ -2341,29 +2370,29 @@
+     {
+       if (LocaleNCompare(expression,"abs",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) fabs((double) alpha));
+         }
+ #if defined(MAGICKCORE_HAVE_ACOSH)
+       if (LocaleNCompare(expression,"acosh",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           return((MagickRealType) acosh((double) alpha));
+         }
+ #endif
+       if (LocaleNCompare(expression,"acos",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           return((MagickRealType) acos((double) alpha));
+         }
+ #if defined(MAGICKCORE_HAVE_J1)
+       if (LocaleNCompare(expression,"airy",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           if (alpha == 0.0)
+             return(1.0);
+           gamma=2.0*j1((double) (MagickPI*alpha))/(MagickPI*alpha);
+@@ -2373,41 +2402,41 @@
+ #if defined(MAGICKCORE_HAVE_ASINH)
+       if (LocaleNCompare(expression,"asinh",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           return((MagickRealType) asinh((double) alpha));
+         }
+ #endif
+       if (LocaleNCompare(expression,"asin",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           return((MagickRealType) asin((double) alpha));
+         }
+       if (LocaleNCompare(expression,"alt",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return(((ssize_t) alpha) & 0x01 ? -1.0 : 1.0);
+         }
+       if (LocaleNCompare(expression,"atan2",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           return((MagickRealType) atan2((double) alpha,(double) *beta));
+         }
+ #if defined(MAGICKCORE_HAVE_ATANH)
+       if (LocaleNCompare(expression,"atanh",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           return((MagickRealType) atanh((double) alpha));
+         }
+ #endif
+       if (LocaleNCompare(expression,"atan",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           return((MagickRealType) atan((double) alpha));
+         }
+       if (LocaleCompare(expression,"a") == 0)
+@@ -2426,20 +2455,20 @@
+     {
+       if (LocaleNCompare(expression,"ceil",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           return((MagickRealType) ceil((double) alpha));
+         }
+       if (LocaleNCompare(expression,"cosh",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           return((MagickRealType) cosh((double) alpha));
+         }
+       if (LocaleNCompare(expression,"cos",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) cos((double) alpha));
+         }
+       if (LocaleCompare(expression,"c") == 0)
+@@ -2454,8 +2483,8 @@
+           const char
+             *type;
+ 
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           if (fx_info->images->colorspace == CMYKColorspace)
+             switch (channel)
+             {
+@@ -2487,8 +2516,8 @@
+         }
+       if (LocaleNCompare(expression,"drc",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) (alpha/(*beta*(alpha-1.0)+1.0)));
+         }
+       break;
+@@ -2500,8 +2529,8 @@
+         return((MagickRealType) MagickEpsilon);
+       if (LocaleNCompare(expression,"exp",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) exp((double) alpha));
+         }
+       if (LocaleCompare(expression,"e") == 0)
+@@ -2513,8 +2542,8 @@
+     {
+       if (LocaleNCompare(expression,"floor",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           return((MagickRealType) floor((double) alpha));
+         }
+       break;
+@@ -2524,8 +2553,8 @@
+     {
+       if (LocaleNCompare(expression,"gauss",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           gamma=exp((double) (-alpha*alpha/2.0))/sqrt(2.0*MagickPI);
+           return((MagickRealType) gamma);
+         }
+@@ -2534,8 +2563,8 @@
+           MagickOffsetType
+             gcd;
+ 
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           gcd=FxGCD((MagickOffsetType) (alpha+0.5),(MagickOffsetType)
+             (*beta+0.5));
+           return((MagickRealType) gcd);
+@@ -2553,8 +2582,8 @@
+         return(FxGetSymbol(fx_info,channel,x,y,expression,exception));
+       if (LocaleNCompare(expression,"hypot",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           return((MagickRealType) hypot((double) alpha,(double) *beta));
+         }
+       break;
+@@ -2573,15 +2602,15 @@
+         return(FxGetSymbol(fx_info,channel,x,y,expression,exception));
+       if (LocaleNCompare(expression,"int",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) floor(alpha));
+         }
+ #if defined(MAGICKCORE_HAVE_ISNAN)
+       if (LocaleNCompare(expression,"isnan",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           return((MagickRealType) !!isnan((double) alpha));
+         }
+ #endif
+@@ -2597,24 +2626,24 @@
+ #if defined(MAGICKCORE_HAVE_J0)
+       if (LocaleNCompare(expression,"j0",2) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+2,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+2,depth,
++            beta,exception);
+           return((MagickRealType) j0((double) alpha));
+         }
+ #endif
+ #if defined(MAGICKCORE_HAVE_J1)
+       if (LocaleNCompare(expression,"j1",2) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+2,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+2,depth,
++            beta,exception);
+           return((MagickRealType) j1((double) alpha));
+         }
+ #endif
+ #if defined(MAGICKCORE_HAVE_J1)
+       if (LocaleNCompare(expression,"jinc",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           if (alpha == 0.0)
+             return(1.0);
+           gamma=(MagickRealType) (2.0*j1((double) (MagickPI*alpha))/
+@@ -2629,20 +2658,20 @@
+     {
+       if (LocaleNCompare(expression,"ln",2) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+2,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+2,depth,
++            beta,exception);
+           return((MagickRealType) log((double) alpha));
+         }
+       if (LocaleNCompare(expression,"logtwo",6) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+6,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+6,depth,
++            beta,exception);
+           return((MagickRealType) log10((double) alpha))/log10(2.0);
+         }
+       if (LocaleNCompare(expression,"log",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) log10((double) alpha));
+         }
+       if (LocaleCompare(expression,"lightness") == 0)
+@@ -2658,22 +2687,22 @@
+         break;
+       if (LocaleNCompare(expression,"max",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return(alpha > *beta ? alpha : *beta);
+         }
+       if (LocaleNCompare(expression,"minima",6) == 0)
+         break;
+       if (LocaleNCompare(expression,"min",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return(alpha < *beta ? alpha : *beta);
+         }
+       if (LocaleNCompare(expression,"mod",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           gamma=alpha-floor((double) (alpha/(*beta)))*(*beta);
+           return(gamma);
+         }
+@@ -2686,8 +2715,8 @@
+     {
+       if (LocaleNCompare(expression,"not",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) (alpha < MagickEpsilon));
+         }
+       if (LocaleCompare(expression,"n") == 0)
+@@ -2712,8 +2741,8 @@
+         return((MagickRealType) MagickPI);
+       if (LocaleNCompare(expression,"pow",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) pow((double) alpha,(double) *beta));
+         }
+       if (LocaleCompare(expression,"p") == 0)
+@@ -2736,8 +2765,8 @@
+         return((MagickRealType) GetPseudoRandomValue(fx_info->random_info));
+       if (LocaleNCompare(expression,"round",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           return((MagickRealType) floor((double) alpha+0.5));
+         }
+       if (LocaleCompare(expression,"r") == 0)
+@@ -2751,14 +2780,14 @@
+         return(FxGetSymbol(fx_info,channel,x,y,expression,exception));
+       if (LocaleNCompare(expression,"sign",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           return(alpha < 0.0 ? -1.0 : 1.0);
+         }
+       if (LocaleNCompare(expression,"sinc",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           if (alpha == 0)
+             return(1.0);
+           gamma=(MagickRealType) (sin((double) (MagickPI*alpha))/
+@@ -2767,26 +2796,26 @@
+         }
+       if (LocaleNCompare(expression,"sinh",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           return((MagickRealType) sinh((double) alpha));
+         }
+       if (LocaleNCompare(expression,"sin",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) sin((double) alpha));
+         }
+       if (LocaleNCompare(expression,"sqrt",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           return((MagickRealType) sqrt((double) alpha));
+         }
+       if (LocaleNCompare(expression,"squish",6) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+6,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+6,depth,
++            beta,exception);
+           return((MagickRealType) (1.0/(1.0+exp((double) (-alpha)))));
+         }
+       if (LocaleCompare(expression,"s") == 0)
+@@ -2798,22 +2827,22 @@
+     {
+       if (LocaleNCompare(expression,"tanh",4) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+4,depth,
++            beta,exception);
+           return((MagickRealType) tanh((double) alpha));
+         }
+       if (LocaleNCompare(expression,"tan",3) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+3,depth,
++            beta,exception);
+           return((MagickRealType) tan((double) alpha));
+         }
+       if (LocaleCompare(expression,"Transparent") == 0)
+         return(0.0);
+       if (LocaleNCompare(expression,"trunc",5) == 0)
+         {
+-          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-            exception);
++          alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,depth,
++            beta,exception);
+           if (alpha >= 0.0)
+             return((MagickRealType) floor((double) alpha));
+           return((MagickRealType) ceil((double) alpha));
+@@ -2843,8 +2872,8 @@
+         {
+           do
+           {
+-            alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,beta,
+-              exception);
++            alpha=FxEvaluateSubexpression(fx_info,channel,x,y,expression+5,
++              depth,beta,exception);
+           } while (fabs((double) alpha) >= MagickEpsilon);
+           return((MagickRealType) *beta);
+         }
+@@ -2909,9 +2938,13 @@
+   MagickRealType
+     beta;
+ 
++  size_t
++    depth;
++
+   beta=0.0;
+-  *alpha=FxEvaluateSubexpression(fx_info,channel,x,y,fx_info->expression,&beta,
+-    exception);
++  depth=0;
++  *alpha=FxEvaluateSubexpression(fx_info,channel,x,y,fx_info->expression,&depth,
++    &beta,exception);
+   return(exception->severity == OptionError ? MagickFalse : MagickTrue);
+ }
+ 

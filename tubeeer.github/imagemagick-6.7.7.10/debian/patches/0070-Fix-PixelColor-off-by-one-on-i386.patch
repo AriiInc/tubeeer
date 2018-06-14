@@ -1,0 +1,294 @@
+Backport of:
+
+From f40ae7899afa53437ea99f7be105e549e85b0c47 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Sun, 8 Nov 2015 13:16:51 -0500
+Subject: [PATCH] Fix PixelColor off by one on i386
+
+Bug: https://github.com/ImageMagick/ImageMagick/issues/54
+---
+ coders/jpeg.c     | 20 ++++++++++----------
+ magick/cache.c    | 48 +++++++++++++++++++++++++++++++++++++++---------
+ magick/color.c    | 22 ++++++++++++----------
+ magick/identify.c | 26 ++++++++++++++------------
+ 4 files changed, 75 insertions(+), 41 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/jpeg.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/jpeg.c	2016-11-11 13:28:44.987842689 -0500
++++ imagemagick-6.7.7.10/coders/jpeg.c	2016-11-11 13:28:44.983842646 -0500
+@@ -1626,7 +1626,7 @@
+   if (description == (XMLTreeInfo *) NULL)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-        "XmlMissingElement", "<description>, slot \"%s\"",slot);
++        "XmlMissingElement","<description>, slot \"%s\"",slot);
+       quantization_tables=DestroyXMLTree(quantization_tables);
+       xml=DestroyString(xml);
+       return(table);
+@@ -1635,7 +1635,7 @@
+   if (levels == (XMLTreeInfo *) NULL)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-        "XmlMissingElement", "<levels>, slot \"%s\"", slot);
++        "XmlMissingElement","<levels>, slot \"%s\"",slot);
+       quantization_tables=DestroyXMLTree(quantization_tables);
+       xml=DestroyString(xml);
+       return(table);
+@@ -1657,7 +1657,7 @@
+   if (attribute == (char *) NULL)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-        "XmlMissingAttribute", "<levels width>, slot \"%s\"",slot);
++        "XmlMissingAttribute","<levels width>, slot \"%s\"",slot);
+       quantization_tables=DestroyXMLTree(quantization_tables);
+       table=DestroyQuantizationTable(table);
+       xml=DestroyString(xml);
+@@ -1667,7 +1667,7 @@
+   if (table->width == 0)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-       "XmlInvalidAttribute", "<levels width>, table \"%s\"",slot);
++       "XmlInvalidAttribute","<levels width>, table \"%s\"",slot);
+       quantization_tables=DestroyXMLTree(quantization_tables);
+       table=DestroyQuantizationTable(table);
+       xml=DestroyString(xml);
+@@ -1677,7 +1677,7 @@
+   if (attribute == (char *) NULL)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-        "XmlMissingAttribute", "<levels height>, table \"%s\"",slot);
++        "XmlMissingAttribute","<levels height>, table \"%s\"",slot);
+       quantization_tables=DestroyXMLTree(quantization_tables);
+       table=DestroyQuantizationTable(table);
+       xml=DestroyString(xml);
+@@ -1687,7 +1687,7 @@
+   if (table->height == 0)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-        "XmlInvalidAttribute", "<levels height>, table \"%s\"",slot);
++        "XmlInvalidAttribute","<levels height>, table \"%s\"",slot);
+       quantization_tables=DestroyXMLTree(quantization_tables);
+       table=DestroyQuantizationTable(table);
+       xml=DestroyString(xml);
+@@ -1697,7 +1697,7 @@
+   if (attribute == (char *) NULL)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-        "XmlMissingAttribute", "<levels divisor>, table \"%s\"",slot);
++        "XmlMissingAttribute","<levels divisor>, table \"%s\"",slot);
+       quantization_tables=DestroyXMLTree(quantization_tables);
+       table=DestroyQuantizationTable(table);
+       xml=DestroyString(xml);
+@@ -1707,7 +1707,7 @@
+   if (table->divisor == 0.0)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-        "XmlInvalidAttribute", "<levels divisor>, table \"%s\"",slot);
++        "XmlInvalidAttribute","<levels divisor>, table \"%s\"",slot);
+       quantization_tables=DestroyXMLTree(quantization_tables);
+       table=DestroyQuantizationTable(table);
+       xml=DestroyString(xml);
+@@ -1717,7 +1717,7 @@
+   if (content == (char *) NULL)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-        "XmlMissingContent", "<levels>, table \"%s\"",slot);
++        "XmlMissingContent","<levels>, table \"%s\"",slot);
+       quantization_tables=DestroyXMLTree(quantization_tables);
+       table=DestroyQuantizationTable(table);
+       xml=DestroyString(xml);
+@@ -1746,7 +1746,7 @@
+   if (p != content)
+     {
+       (void) ThrowMagickException(exception,GetMagickModule(),OptionError,
+-        "XmlInvalidContent", "<level> too many values, table \"%s\"",slot);
++        "XmlInvalidContent","<level> too many values, table \"%s\"",slot);
+      quantization_tables=DestroyXMLTree(quantization_tables);
+      table=DestroyQuantizationTable(table);
+      xml=DestroyString(xml);
+Index: imagemagick-6.7.7.10/magick/cache.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/cache.c	2016-11-11 13:28:44.987842689 -0500
++++ imagemagick-6.7.7.10/magick/cache.c	2016-11-11 13:34:20.063415224 -0500
+@@ -630,6 +630,11 @@
+   const CacheInfo *restrict cache_info,const MagickOffsetType offset,
+   const MagickSizeType length,unsigned char *restrict buffer)
+ {
++#if !defined(MAGICKCORE_HAVE_PREAD)
++  MagickOffsetType
++    current_offset;
++#endif
++
+   register MagickOffsetType
+     i;
+ 
+@@ -638,6 +643,12 @@
+ 
+ #if !defined(MAGICKCORE_HAVE_PREAD)
+   LockSemaphoreInfo(cache_info->disk_semaphore);
++  current_offset=(MagickOffsetType) lseek(cache_info->file,0,SEEK_CUR);
++  if (current_offset < 0)
++    {
++      UnlockSemaphoreInfo(cache_info->disk_semaphore);
++      return((MagickOffsetType) -1);
++    }
+   if (lseek(cache_info->file,offset,SEEK_SET) < 0)
+     {
+       UnlockSemaphoreInfo(cache_info->disk_semaphore);
+@@ -648,11 +659,11 @@
+   for (i=0; i < (MagickOffsetType) length; i+=count)
+   {
+ #if !defined(MAGICKCORE_HAVE_PREAD)
+-    count=read(cache_info->file,buffer+i,(size_t) MagickMin(length-i,
+-      (MagickSizeType) SSIZE_MAX));
++    count=read(cache_info->file,buffer+i,(size_t) MagickMin(length-i,(size_t)
++      SSIZE_MAX));
+ #else
+-    count=pread(cache_info->file,buffer+i,(size_t) MagickMin(length-i,
+-      (MagickSizeType) SSIZE_MAX),(off_t) (offset+i));
++    count=pread(cache_info->file,buffer+i,(size_t) MagickMin(length-i,(size_t)
++      SSIZE_MAX),(off_t) (offset+i));
+ #endif
+     if (count > 0)
+       continue;
+@@ -664,6 +675,13 @@
+       }
+   }
+ #if !defined(MAGICKCORE_HAVE_PREAD)
++  if (lseek(cache_info->file,current_offset,SEEK_SET) < 0)
++    {
++      UnlockSemaphoreInfo(cache_info->disk_semaphore);
++      return((MagickOffsetType) -1);
++    }
++#endif
++#if !defined(MAGICKCORE_HAVE_PREAD)
+   UnlockSemaphoreInfo(cache_info->disk_semaphore);
+ #endif
+   return(i);
+@@ -673,6 +691,11 @@
+   const CacheInfo *restrict cache_info,const MagickOffsetType offset,
+   const MagickSizeType length,const unsigned char *restrict buffer)
+ {
++#if !defined(MAGICKCORE_HAVE_PWRITE)
++  MagickOffsetType
++    current_offset;
++#endif
++
+   register MagickOffsetType
+     i;
+ 
+@@ -681,6 +704,12 @@
+ 
+ #if !defined(MAGICKCORE_HAVE_PWRITE)
+   LockSemaphoreInfo(cache_info->disk_semaphore);
++  current_offset=(MagickOffsetType) lseek(cache_info->file,0,SEEK_CUR);
++  if (current_offset < 0)
++    {
++      UnlockSemaphoreInfo(cache_info->disk_semaphore);
++      return((MagickOffsetType) -1);
++    }
+   if (lseek(cache_info->file,offset,SEEK_SET) < 0)
+     {
+       UnlockSemaphoreInfo(cache_info->disk_semaphore);
+@@ -707,6 +736,13 @@
+       }
+   }
+ #if !defined(MAGICKCORE_HAVE_PWRITE)
++  if (lseek(cache_info->file,current_offset,SEEK_SET) < 0)
++    {
++      UnlockSemaphoreInfo(cache_info->disk_semaphore);
++      return((MagickOffsetType) -1);
++    }
++#endif
++#if !defined(MAGICKCORE_HAVE_PWRITE)
+   UnlockSemaphoreInfo(cache_info->disk_semaphore);
+ #endif
+   return(i);
+@@ -4722,8 +4758,10 @@
+ 
+   if (IsPixelAuthentic(cache_info,nexus_info) != MagickFalse)
+     return(MagickTrue);
+-  offset=(MagickOffsetType) nexus_info->region.y*cache_info->columns+
+-    nexus_info->region.x;
++  offset=(MagickOffsetType) nexus_info->region.y*cache_info->columns;
++  if ((offset/cache_info->columns) != (MagickOffsetType) nexus_info->region.y)
++    return(MagickFalse);
++  offset+=nexus_info->region.x;
+   length=(MagickSizeType) nexus_info->region.width*sizeof(PixelPacket);
+   rows=nexus_info->region.height;
+   extent=length*rows;
+Index: imagemagick-6.7.7.10/magick/color.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/color.c	2016-11-11 13:28:44.987842689 -0500
++++ imagemagick-6.7.7.10/magick/color.c	2016-11-11 13:36:04.468527872 -0500
+@@ -2693,17 +2693,20 @@
+       if ((flags & PercentValue) != 0)
+         scale=(MagickRealType) (QuantumRange/100.0);
+       if ((flags & RhoValue) != 0)
+-        color->red=(MagickRealType) ClampToQuantum(scale*geometry_info.rho);
++            color->red=(MagickRealType) ClampToQuantum((MagickRealType)
++              floor(scale*geometry_info.rho));
+       if ((flags & SigmaValue) != 0)
+-        color->green=(MagickRealType) ClampToQuantum(scale*geometry_info.sigma);
++            color->green=(MagickRealType) ClampToQuantum((MagickRealType)
++              floor(scale*geometry_info.sigma));
+       if ((flags & XiValue) != 0)
+-        color->blue=(MagickRealType) ClampToQuantum(scale*geometry_info.xi);
++            color->blue=(MagickRealType) ClampToQuantum((MagickRealType)
++              floor(scale*geometry_info.xi));
+       color->opacity=(MagickRealType) OpaqueOpacity;
+       if ((flags & PsiValue) != 0)
+         {
+           if (color->colorspace == CMYKColorspace)
+-            color->index=(MagickRealType) ClampToQuantum(scale*
+-              geometry_info.psi);
++                color->index=(MagickRealType) ClampToQuantum((MagickRealType)
++                  floor(scale*geometry_info.psi));
+           else
+             if (color->matte != MagickFalse)
+               color->opacity=(MagickRealType) ClampToQuantum((MagickRealType)
+Index: imagemagick-6.7.7.10/magick/identify.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/identify.c	2016-11-11 13:28:44.987842689 -0500
++++ imagemagick-6.7.7.10/magick/identify.c	2016-11-11 13:28:44.987842689 -0500
+@@ -220,11 +220,13 @@
+ 
+   if (channel == AlphaChannel)
+     {
+-      n=FormatLocaleFile(file,StatisticsFormat,name,ClampToQuantum(scale*
+-        (QuantumRange-channel_statistics[channel].maxima)),
+-        (QuantumRange-channel_statistics[channel].maxima)/(double) QuantumRange,
+-        ClampToQuantum(scale*(QuantumRange-channel_statistics[channel].minima)),
+-        (QuantumRange-channel_statistics[channel].minima)/(double) QuantumRange,
++      n=FormatLocaleFile(file,StatisticsFormat,name,ClampToQuantum(
++        (MagickRealType) floor(scale*(QuantumRange-
++        channel_statistics[channel].maxima))),(QuantumRange-
++        channel_statistics[channel].maxima)/(double) QuantumRange,
++        ClampToQuantum((MagickRealType) floor(scale*(QuantumRange-
++        channel_statistics[channel].minima))),(QuantumRange-
++        channel_statistics[channel].minima)/(double) QuantumRange,
+         scale*(QuantumRange-channel_statistics[channel].mean),(QuantumRange-
+         channel_statistics[channel].mean)/(double) QuantumRange,scale*
+         channel_statistics[channel].standard_deviation,
+@@ -233,13 +235,13 @@
+         channel_statistics[channel].skewness);
+       return(n);
+     }
+-  n=FormatLocaleFile(file,StatisticsFormat,name,ClampToQuantum(scale*
+-    channel_statistics[channel].minima),channel_statistics[channel].minima/
+-    (double) QuantumRange,ClampToQuantum(scale*
+-    channel_statistics[channel].maxima),channel_statistics[channel].maxima/
+-    (double) QuantumRange,scale*channel_statistics[channel].mean,
+-    channel_statistics[channel].mean/(double) QuantumRange,scale*
+-    channel_statistics[channel].standard_deviation,
++  n=FormatLocaleFile(file,StatisticsFormat,name,ClampToQuantum((MagickRealType)
++    floor(scale*channel_statistics[channel].minima)),
++    channel_statistics[channel].minima/(double) QuantumRange,ClampToQuantum(
++    (MagickRealType) (scale*channel_statistics[channel].maxima)),
++    channel_statistics[channel].maxima/(double) QuantumRange,scale*
++    channel_statistics[channel].mean,channel_statistics[channel].mean/(double)
++    QuantumRange,scale*channel_statistics[channel].standard_deviation,
+     channel_statistics[channel].standard_deviation/(double) QuantumRange,
+     channel_statistics[channel].kurtosis,channel_statistics[channel].skewness);
+   return(n);

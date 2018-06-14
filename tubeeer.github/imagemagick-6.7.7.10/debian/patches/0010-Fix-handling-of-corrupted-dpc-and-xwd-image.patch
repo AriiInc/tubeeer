@@ -1,0 +1,79 @@
+Backport of:
+
+From 82f779cbc24045af2eaecb95d0842ca7b97c71f4 Mon Sep 17 00:00:00 2001
+From: cristy <cristy@aa41f4f7-0bf4-0310-aa73-e5a19afd5a74>
+Date: Sun, 23 Nov 2014 16:36:18 +0000
+Subject: [PATCH] Fix handling of corrupted dpc and xwd image
+
+Avoid a segv thus a DOS.
+
+git-svn-id: https://subversion.imagemagick.org/subversion/ImageMagick/branches/ImageMagick-6@17092 aa41f4f7-0bf4-0310-aa73-e5a19afd5a74
+origin: http://trac.imagemagick.org/changeset/17092
+---
+ coders/dpx.c |  2 ++
+ coders/xwd.c | 17 +++++++----------
+ 2 files changed, 9 insertions(+), 10 deletions(-)
+
+Index: imagemagick-6.7.7.10/coders/dpx.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/dpx.c	2016-11-11 08:51:46.366899546 -0500
++++ imagemagick-6.7.7.10/coders/dpx.c	2016-11-11 08:51:46.362899506 -0500
+@@ -694,6 +694,8 @@
+     case 7: image->orientation=RightBottomOrientation; break;
+   }
+   dpx.image.number_elements=ReadBlobShort(image);
++  if (dpx.image.number_elements > 8)
++    ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+   offset+=2;
+   dpx.image.pixels_per_line=ReadBlobLong(image);
+   offset+=4;
+Index: imagemagick-6.7.7.10/coders/xwd.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/xwd.c	2016-11-11 08:51:46.366899546 -0500
++++ imagemagick-6.7.7.10/coders/xwd.c	2016-11-11 08:52:51.415556614 -0500
+@@ -274,6 +274,8 @@
+   if ((ximage->depth < 0) || (ximage->width < 0) || (ximage->height < 0) ||
+       (ximage->bitmap_pad < 0) || (ximage->bytes_per_line < 0))
+     ThrowReaderException(CorruptImageError,"ImproperImageHeader");
++  if ((ximage->width > 65535) || (ximage->height > 65535))
++    ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+   if ((ximage->bits_per_pixel > 32) || (ximage->bitmap_unit > 32))
+     ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+   x_status=XInitImage(ximage);
+@@ -406,14 +408,12 @@
+             {
+               pixel=XGetPixel(ximage,(int) x,(int) y);
+               index=(IndexPacket) ((pixel >> red_shift) & red_mask);
+-              SetPixelRed(q,ScaleShortToQuantum(colors[(ssize_t)
+-                index].red));
++              SetPixelRed(q,ScaleShortToQuantum(colors[(ssize_t) index].red));
+               index=(IndexPacket) ((pixel >> green_shift) & green_mask);
+               SetPixelGreen(q,ScaleShortToQuantum(colors[(ssize_t)
+                 index].green));
+               index=(IndexPacket) ((pixel >> blue_shift) & blue_mask);
+-              SetPixelBlue(q,ScaleShortToQuantum(colors[(ssize_t)
+-                index].blue));
++              SetPixelBlue(q,ScaleShortToQuantum(colors[(ssize_t) index].blue));
+               q++;
+             }
+             if (SyncAuthenticPixels(image,exception) == MagickFalse)
+@@ -434,16 +434,13 @@
+               pixel=XGetPixel(ximage,(int) x,(int) y);
+               color=(pixel >> red_shift) & red_mask;
+               color=(color*65535UL)/red_mask;
+-              SetPixelRed(q,ScaleShortToQuantum((unsigned short)
+-                color));
++              SetPixelRed(q,ScaleShortToQuantum((unsigned short) color));
+               color=(pixel >> green_shift) & green_mask;
+               color=(color*65535UL)/green_mask;
+-              SetPixelGreen(q,ScaleShortToQuantum((unsigned short)
+-                color));
++              SetPixelGreen(q,ScaleShortToQuantum((unsigned short) color));
+               color=(pixel >> blue_shift) & blue_mask;
+               color=(color*65535UL)/blue_mask;
+-              SetPixelBlue(q,ScaleShortToQuantum((unsigned short)
+-                color));
++              SetPixelBlue(q,ScaleShortToQuantum((unsigned short) color));
+               q++;
+             }
+             if (SyncAuthenticPixels(image,exception) == MagickFalse)

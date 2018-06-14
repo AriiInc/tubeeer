@@ -1,0 +1,102 @@
+<!-- <h1>タイトル</h1>
+<%= @blog.title %>
+<h1>本文</h1>
+<%== @blog.body %>
+<%= link_to "編集", edit_blog_path(@blog.id) %>  -->
+
+
+<main role="main" class="container blog-show">
+      <div class="row">
+        <div class="col-md-8 blog-main">
+          <h3 class="pb-3 mb-4 border-bottom">
+            <%= @blog.title %>
+          </h3>
+          <%== @blog.body %>
+          <div class="blog-post">
+            <p class="blog-post-meta">January 1, 2014 by <a href="#">Mark</a></p>
+          </div>
+          <!-- ページネーション　bootstrap -->
+          <nav aria-label="Page navigation example pagination-a" class="mx-auto">
+            <ul class="pagination">
+              <li class="page-item">
+                <a class="page-link" href="#" aria-label="Previous">
+                  <span aria-hidden="true">&laquo;</span>
+                  <span class="sr-only">Previous</span>
+                </a>
+              </li>
+              <li class="page-item"><a class="page-link" href="#">1</a></li>
+              <li class="page-item"><a class="page-link" href="#">2</a></li>
+              <li class="page-item"><a class="page-link" href="#">3</a></li>
+              <li class="page-item">
+                <a class="page-link" href="#" aria-label="Next">
+                  <span aria-hidden="true">&raquo;</span>
+                  <span class="sr-only">Next</span>
+                </a>
+              </li>
+            </ul>
+          </nav>
+
+        </div><!-- /.blog-main -->
+
+        <aside class="col-md-4 blog-sidebar">
+          <div class="p-3 mb-3 bg-light rounded">
+            <h4 class="top-sidebar">広告</h4>
+          </div>
+
+　　　　　　　<div class="card mb-4 box-shadow">
+	            <div class="card-body top-c">
+	              <p class="card-title">タイトル</p>
+	              <p class="card-text">本文本文本本文本文本文</p>
+	              <p class="card-text"></p>
+	              <div class="d-flex justify-content-between align-items-center">
+	                <small class="text-muted">100PV</small>
+	              </div>
+	            </div>
+	        </div>
+
+
+
+
+	        <div class="card mb-4 box-shadow">
+	            <div class="card-body top-c">
+	              <p class="card-title">タイトル</p>
+	              <p class="card-text">本文本文本本文本文本文</p>
+	              <p class="card-text"></p>
+	              <div class="d-flex justify-content-between align-items-center">
+	                <small class="text-muted">100PV</small>
+	              </div>
+	            </div>
+	        </div>
+	        
+
+          <!-- <div class="p-3">
+            <h4 class="font-italic">タグ</h4>
+            <ol class="list-unstyled mb-0">
+              <li><a href="#">March 2014</a></li>
+              <li><a href="#">February 2014</a></li>
+              <li><a href="#">January 2014</a></li>
+              <li><a href="#">December 2013</a></li>
+              <li><a href="#">November 2013</a></li>
+              <li><a href="#">October 2013</a></li>
+              <li><a href="#">September 2013</a></li>
+              <li><a href="#">August 2013</a></li>
+              <li><a href="#">July 2013</a></li>
+              <li><a href="#">June 2013</a></li>
+              <li><a href="#">May 2013</a></li>
+              <li><a href="#">April 2013</a></li>
+            </ol>
+          </div>
+
+          <div class="p-3">
+            <h4 class="font-italic">SNS</h4>
+            <ol class="list-unstyled">
+              <li><a href="#">GitHub</a></li>
+              <li><a href="#">Twitter</a></li>
+              <li><a href="#">Facebook</a></li>
+            </ol>
+          </div> -->
+        </aside><!-- /.blog-sidebar -->
+
+      </div><!-- /.row -->
+
+    </main><!-- /.container -->

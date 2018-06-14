@@ -1,0 +1,27 @@
+From 46a852fedab6c71473eb9026c3881c1a82722177 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Thu, 4 Aug 2016 10:21:49 -0400
+Subject: [PATCH] Prevent buffer overflow in draw.c
+
+Thanks to Max Thrane, an insuffisant allocation of bezier buffer was dectected. Increase
+the size of buffer
+
+origin: upstream, https://github.com/ImageMagick/ImageMagick/commit/989f9f88ea6db09b99d25586e912c921c0da8d3f
+debian-bug: https://bug.debian.org/833730
+---
+ magick/draw.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: imagemagick-6.7.7.10/magick/draw.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/magick/draw.c	2016-11-14 11:00:17.085310208 -0500
++++ imagemagick-6.7.7.10/magick/draw.c	2016-11-14 11:00:17.081310207 -0500
+@@ -2899,7 +2899,7 @@
+             }
+           length++;
+         }
+-        length=length*BezierQuantum/2;
++        length=length*BezierQuantum;
+         break;
+       }
+       case CirclePrimitive:

@@ -1,0 +1,54 @@
+From cf38ff3f32bc6c715faa8c3936fd69c4926064e3 Mon Sep 17 00:00:00 2001
+From: Cristy <urban-warrior@imagemagick.org>
+Date: Sun, 2 Jul 2017 20:38:07 -0400
+Subject: [PATCH] Avoid heap based overflow for jpeg
+
+A corrupted jpeg file could trigger an heap overflow
+
+bug-debian: https://bugs.debian.org/867894
+bug: https://github.com/ImageMagick/ImageMagick/issues/556
+origin: https://github.com/ImageMagick/ImageMagick/commit/948356eec65aea91995d4b7cc487d197d2c5f602
+---
+ coders/jpeg.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+Index: imagemagick-6.7.7.10/coders/jpeg.c
+===================================================================
+--- imagemagick-6.7.7.10.orig/coders/jpeg.c	2017-07-21 10:02:09.969296843 -0400
++++ imagemagick-6.7.7.10/coders/jpeg.c	2017-07-21 10:02:09.965296842 -0400
+@@ -1002,6 +1002,11 @@ static Image *ReadJPEGImage(const ImageI
+       return((Image *) NULL);
+     }
+   /*
++    Verify that file size large enough to contain a JPEG datastream.
++  */
++  if (GetBlobSize(image) < 107)
++    ThrowReaderException(CorruptImageError,"InsufficientImageDataInFile");
++  /*
+     Initialize JPEG parameters.
+   */
+   (void) ResetMagickMemory(&error_manager,0,sizeof(error_manager));
+@@ -1455,6 +1460,7 @@ ModuleExport size_t RegisterJPEGImage(vo
+ #endif
+   entry->magick=(IsImageFormatHandler *) IsJPEG;
+   entry->adjoin=MagickFalse;
++  entry->seekable_stream=MagickTrue;
+   entry->description=ConstantString(description);
+   if (*version != '\0')
+     entry->version=ConstantString(version);
+@@ -1467,6 +1473,7 @@ ModuleExport size_t RegisterJPEGImage(vo
+   entry->encoder=(EncodeImageHandler *) WriteJPEGImage;
+ #endif
+   entry->adjoin=MagickFalse;
++  entry->seekable_stream=MagickTrue;
+   entry->description=ConstantString(description);
+   if (*version != '\0')
+     entry->version=ConstantString(version);
+@@ -1479,6 +1486,7 @@ ModuleExport size_t RegisterJPEGImage(vo
+   entry->encoder=(EncodeImageHandler *) WriteJPEGImage;
+ #endif
+   entry->adjoin=MagickFalse;
++  entry->seekable_stream=MagickTrue;
+   entry->description=ConstantString(description);
+   if (*version != '\0')
+     entry->version=ConstantString(version);
